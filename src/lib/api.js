@@ -31,6 +31,12 @@ export async function getSavedRecipes(token) {
   return res.json()
 }
 
+export async function getRecipe(id) {
+  const res = await fetch(`${API_URL}/api/recipes/${id}`)
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
 export async function logMeal(data, token) {
   const res = await fetch(`${API_URL}/api/meal-log`, {
     method: 'POST',

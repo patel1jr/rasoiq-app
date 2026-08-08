@@ -60,7 +60,12 @@ export async function createCollection(name, emoji, token) {
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
     body: JSON.stringify({ name, emoji })
   })
-  if (!res.ok) throw await res.json()
+  if (!res.ok) {
+    const body = await res.text()
+    let parsed
+    try { parsed = JSON.parse(body) } catch { parsed = { message: body || `HTTP ${res.status}` } }
+    throw parsed
+  }
   return res.json()
 }
 

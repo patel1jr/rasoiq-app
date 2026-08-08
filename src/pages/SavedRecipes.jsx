@@ -39,8 +39,10 @@ function CreateCollectionSheet({ onClose, onCreated, session }) {
     try {
       const created = await createCollection(name.trim(), emoji, session.access_token)
       onCreated(created)
-    } catch {
-      setError('Could not create collection.')
+    } catch (err) {
+      console.error('createCollection failed:', err)
+      const msg = err?.message || err?.detail || err?.title || ''
+      setError(msg || 'Could not create collection.')
       setLoading(false)
     }
   }

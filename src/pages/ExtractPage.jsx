@@ -268,11 +268,11 @@ export default function ExtractPage() {
                   <button
                     key={id || i}
                     onClick={() => {
-                      if (item.recipe) {
-                        navigate(id ? `/recipe/${id}` : '/recipe', { state: { recipe: item.recipe } })
-                      } else if (id) {
-                        navigate(`/recipe/${id}`)
-                      }
+                      const recipeId = item.recipeId || (item.recipe?.id) || (item.recipe?.recipeId)
+                      // Always pass item as state so userRecipeId is available in RecipePage
+                      navigate(recipeId ? `/recipe/${recipeId}` : '/recipe', {
+                        state: { recipe: item.recipe || item }
+                      })
                     }}
                     className="flex items-center gap-3 bg-white border border-[#EDE8E0] rounded-2xl px-4 py-3.5 text-left"
                   >

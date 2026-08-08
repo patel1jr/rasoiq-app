@@ -345,7 +345,8 @@ export default function RecipePage() {
                     setSaved(false)
                     setUserRecipeId(null)
                   } else {
-                    const recipeId = recipe.id || recipe.recipeId
+                    const recipeId = recipe.id || recipe.recipeId || id
+                    if (!recipeId) { setSaveError('Cannot save — recipe ID missing.'); setSaveLoading(false); return }
                     const result = await saveRecipe(recipeId, session.access_token)
                     setSaved(true)
                     setUserRecipeId(result.userRecipeId)

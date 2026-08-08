@@ -1,7 +1,7 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Smartphone, Check, Loader2, AlertCircle, UtensilsCrossed, X, Lock, Clock, ChefHat, ChevronRight } from 'lucide-react'
-import { extractRecipe } from '../lib/api'
+import { extractRecipe, getSavedRecipes } from '../lib/api'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, addLocalExtraction, isAtLimit, FREE_LIMIT } from '../lib/localExtractions'
 
@@ -28,8 +28,24 @@ export default function ExtractPage() {
   const inputRef = useRef(null)
   const session = useSession()
 
+  const [recentFromApi, setRecentFromApi] = useState(null) // null = not fetched yet
   const localExtractions = getLocalExtractions()
   const localCount = localExtractions.length
+
+  useEffect(() => {
+    if (session) {
+      getSavedRecipes(session.access_token)
+        .then(data => setRecentFromApi(Array.isArray(data) ? data : data?.recipes || []))
+        .catch(() => setRecentFromApi([]))
+    } else {
+      setRecentFromApi(null)
+    }
+  }, [session])
+
+  // For signed-in users: use API data. For guests: use localStorage.
+  const recentItems = session
+    ? (recentFromApi || [])
+    : localExtractions
 
   // Avatar initials for signed-in user
   const avatarInitial = session
@@ -222,35 +238,41 @@ export default function ExtractPage() {
         )}
 
         {/* Recent extractions */}
-        {!loading && localExtractions.length > 0 && (
+        {!loading && recentItems.length > 0 && (
           <div className="mt-7">
             <p className="text-xs font-bold text-[#9B9490] uppercase tracking-wider mb-3">Recent</p>
             <div className="flex flex-col gap-2">
-              {localExtractions.slice(0, session ? 10 : 3).map((item, i) => (
-                <button
-                  key={item.recipeId || i}
-                  onClick={() => {
-                    const id = item.recipeId
-                    if (item.recipe) {
-                      navigate(id ? `/recipe/${id}` : '/recipe', { state: { recipe: item.recipe } })
-                    } else if (id) {
-                      navigate(`/recipe/${id}`)
-                    }
-                  }}
-                  className="flex items-center gap-3 bg-white border border-[#EDE8E0] rounded-2xl px-4 py-3.5 text-left"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-[#FEF0E8] flex items-center justify-center shrink-0">
-                    <Clock size={15} className="text-[#E8611A]" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#1A2E1A] truncate">{item.title}</p>
-                    <p className="text-xs text-[#9B9490]">
-                      {new Date(item.extractedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                    </p>
-                  </div>
-                  <ChevronRight size={16} className="text-[#C0B8AF] shrink-0" />
-                </button>
-              ))}
+              {recentItems.slice(0, 10).map((item, i) => {
+                // API shape: { userRecipeId, recipeId, title, savedAt }
+                // localStorage shape: { recipeId, title, extractedAt, recipe }
+                const id = item.recipeId || item.userRecipeId
+                const title = item.title
+                const date = item.savedAt || item.extractedAt
+                return (
+                  <button
+                    key={id || i}
+                    onClick={() => {
+                      if (item.recipe) {
+                        navigate(id ? `/recipe/${id}` : '/recipe', { state: { recipe: item.recipe } })
+                      } else if (id) {
+                        navigate(`/recipe/${id}`)
+                      }
+                    }}
+                    className="flex items-center gap-3 bg-white border border-[#EDE8E0] rounded-2xl px-4 py-3.5 text-left"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-[#FEF0E8] flex items-center justify-center shrink-0">
+                      <Clock size={15} className="text-[#E8611A]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#1A2E1A] truncate">{title}</p>
+                      <p className="text-xs text-[#9B9490]">
+                        {date ? new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}
+                      </p>
+                    </div>
+                    <ChevronRight size={16} className="text-[#C0B8AF] shrink-0" />
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}

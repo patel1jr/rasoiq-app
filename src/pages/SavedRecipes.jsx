@@ -1,11 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, X, Heart, Clock, Loader2, BookOpen } from 'lucide-react'
+import { Search, X, Heart, Loader2, BookOpen, Plus, Check, FolderPlus, Pencil, Trash2 } from 'lucide-react'
 import { useSession } from '../lib/useSession'
-import { getSavedRecipes } from '../lib/api'
+import { getSavedRecipes, getCollections, createCollection, addToCollection, removeFromCollection } from '../lib/api'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-
 function getYouTubeThumbnail(url) {
   if (!url) return null
   const match = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
@@ -13,135 +12,282 @@ function getYouTubeThumbnail(url) {
   return `https://img.youtube.com/vi/${match[1]}/maxresdefault.jpg`
 }
 
-function formatTime(mins) {
-  if (!mins) return null
-  if (mins < 60) return `${mins} min`
-  const h = Math.floor(mins / 60)
-  const m = mins % 60
-  return m ? `${h}h ${m}m` : `${h}h`
-}
-
 const CUISINE_ACCENT = {
-  punjabi:       '#E8611A',
-  'south indian':'#2D7A5A',
-  gujarati:      '#F5A623',
-  bengali:       '#F5A623',
-  rajasthani:    '#E8611A',
+  punjabi:        '#E8611A',
+  'south indian': '#2D7A5A',
+  gujarati:       '#F5A623',
+  bengali:        '#F5A623',
+  rajasthani:     '#E8611A',
+}
+function accentColor(c) {
+  if (!c) return '#C0B8AF'
+  return CUISINE_ACCENT[c.toLowerCase()] || '#C0B8AF'
 }
 
-function accentColor(cuisine) {
-  if (!cuisine) return '#C0B8AF'
-  return CUISINE_ACCENT[cuisine.toLowerCase()] || '#C0B8AF'
-}
+const EMOJI_OPTIONS = ['👶','🍽️','⚡','🎉','❤️','🌶️','🥗','🍛','🫕','💪','🌙','☀️','🧑‍🍳','🥘','🍜']
 
-const FILTERS = ['All', 'Favourites', 'Recently Cooked', 'Vegetarian', 'Non-veg']
+// ─── Create Collection sheet ───────────────────────────────────────────────
+function CreateCollectionSheet({ onClose, onCreated, session }) {
+  const [name, setName] = useState('')
+  const [emoji, setEmoji] = useState('🍽️')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
-function matchesFilter(recipe, filter) {
-  if (filter === 'All') return true
-  if (filter === 'Favourites') return recipe._saved === true
-  if (filter === 'Recently Cooked') return recipe._recentlyCoooked === true
-  if (filter === 'Vegetarian') return recipe.dietaryTags?.includes('vegetarian')
-  if (filter === 'Non-veg') return !recipe.dietaryTags?.includes('vegetarian')
-  return true
-}
+  async function handleCreate() {
+    if (!name.trim()) return
+    setLoading(true); setError(null)
+    try {
+      const created = await createCollection(name.trim(), emoji, session.access_token)
+      onCreated(created)
+    } catch {
+      setError('Could not create collection.')
+      setLoading(false)
+    }
+  }
 
-// ─── Empty state ───────────────────────────────────────────────────────────
-function EmptyState({ filtered, onExtract }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
-      <div className="w-16 h-16 rounded-full bg-[#FEF0E8] flex items-center justify-center mb-4">
-        <BookOpen size={28} className="text-[#E8611A]" />
-      </div>
-      <p className="font-display text-lg font-bold text-[#1A2E1A] mb-1">
-        {filtered ? 'No matches' : 'No saved recipes yet'}
-      </p>
-      <p className="text-sm text-[#9B9490] leading-relaxed mb-6">
-        {filtered
-          ? 'Try a different filter or search term.'
-          : 'Extract recipes from YouTube videos and save them here.'}
-      </p>
-      {!filtered && (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl z-50 px-6 pt-5 pb-10">
+        <div className="w-10 h-1 bg-[#EDE8E0] rounded-full mx-auto mb-5" />
+        <h3 className="font-display text-xl font-bold text-[#1A2E1A] mb-5">New collection</h3>
+
+        {/* Emoji picker */}
+        <p className="text-xs font-semibold text-[#9B9490] mb-2">Choose an emoji</p>
+        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar mb-5">
+          {EMOJI_OPTIONS.map(e => (
+            <button
+              key={e}
+              onClick={() => setEmoji(e)}
+              className={`shrink-0 w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all ${
+                emoji === e ? 'ring-2 ring-[#E8611A] bg-[#FEF0E8]' : 'bg-[#F5F0EA]'
+              }`}
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+
+        {/* Name input */}
+        <p className="text-xs font-semibold text-[#9B9490] mb-2">Collection name</p>
+        <input
+          autoFocus
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleCreate()}
+          placeholder="e.g. Baby Food, Fine Dining…"
+          className="w-full border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#1A2E1A] placeholder:text-[#C0B8AF] outline-none focus:border-[#E8611A] transition-colors"
+        />
+
+        {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+
         <button
-          onClick={onExtract}
-          className="bg-[#E8611A] text-white font-semibold px-6 py-3 rounded-full text-sm"
+          onClick={handleCreate}
+          disabled={!name.trim() || loading}
+          className="mt-5 w-full bg-[#E8611A] text-white font-bold py-4 rounded-full text-[15px] flex items-center justify-center gap-2 disabled:opacity-40 transition-opacity"
         >
-          Extract a recipe
+          {loading && <Loader2 size={16} className="animate-spin" />}
+          Create collection
         </button>
-      )}
-    </div>
+      </div>
+    </>
   )
 }
 
-// ─── Recipe card ───────────────────────────────────────────────────────────
-function RecipeCard({ recipe, onTap, onUnsave }) {
+// ─── Add to Collection sheet ───────────────────────────────────────────────
+function AddToCollectionSheet({ recipe, collections, onClose, onCollectionCreated, session }) {
+  const [busy, setBusy] = useState(null) // collectionId being toggled
+  const [localMemberships, setLocalMemberships] = useState(
+    () => new Set((recipe.collections || []).map(c => c.id))
+  )
+  const [showCreate, setShowCreate] = useState(false)
+
+  async function toggle(col) {
+    if (busy) return
+    setBusy(col.id)
+    const inCol = localMemberships.has(col.id)
+    try {
+      if (inCol) {
+        await removeFromCollection(col.id, recipe.userRecipeId, session.access_token)
+        setLocalMemberships(prev => { const s = new Set(prev); s.delete(col.id); return s })
+      } else {
+        await addToCollection(col.id, recipe.userRecipeId, session.access_token)
+        setLocalMemberships(prev => new Set([...prev, col.id]))
+      }
+    } catch { /* silent — optimistic update already done */ }
+    finally { setBusy(null) }
+  }
+
+  if (showCreate) {
+    return (
+      <CreateCollectionSheet
+        session={session}
+        onClose={() => setShowCreate(false)}
+        onCreated={col => { onCollectionCreated(col); setShowCreate(false) }}
+      />
+    )
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl z-50 px-6 pt-5 pb-10">
+        <div className="w-10 h-1 bg-[#EDE8E0] rounded-full mx-auto mb-5" />
+        <h3 className="font-display text-xl font-bold text-[#1A2E1A] mb-1">Add to collection</h3>
+        <p className="text-sm text-[#9B9490] mb-5 truncate">{recipe.title}</p>
+
+        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
+          {collections.map(col => {
+            const inCol = localMemberships.has(col.id)
+            return (
+              <button
+                key={col.id}
+                onClick={() => toggle(col)}
+                className="flex items-center gap-3 bg-[#F7F3EE] rounded-xl px-4 py-3 text-left transition-colors active:bg-[#F0EBE4]"
+              >
+                <span className="text-xl shrink-0">{col.emoji || '📁'}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[#1A2E1A]">{col.name}</p>
+                  <p className="text-xs text-[#9B9490]">{col.recipeCount} recipe{col.recipeCount !== 1 ? 's' : ''}</p>
+                </div>
+                {busy === col.id
+                  ? <Loader2 size={16} className="animate-spin text-[#9B9490] shrink-0" />
+                  : inCol
+                    ? <div className="w-6 h-6 rounded-full bg-[#E8611A] flex items-center justify-center shrink-0">
+                        <Check size={13} className="text-white" strokeWidth={3} />
+                      </div>
+                    : <div className="w-6 h-6 rounded-full border-2 border-[#EDE8E0] shrink-0" />
+                }
+              </button>
+            )
+          })}
+        </div>
+
+        {/* New collection row */}
+        <button
+          onClick={() => setShowCreate(true)}
+          className="mt-3 flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-dashed border-[#E8611A] text-left"
+        >
+          <div className="w-8 h-8 rounded-full bg-[#FEF0E8] flex items-center justify-center shrink-0">
+            <Plus size={15} className="text-[#E8611A]" />
+          </div>
+          <span className="text-sm font-semibold text-[#E8611A]">Create new collection</span>
+        </button>
+      </div>
+    </>
+  )
+}
+
+// ─── Long-press action sheet ───────────────────────────────────────────────
+function CardActionSheet({ recipe, onAddToCollection, onUnsave, onClose }) {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl z-50 px-6 pt-5 pb-10">
+        <div className="w-10 h-1 bg-[#EDE8E0] rounded-full mx-auto mb-4" />
+        <p className="text-xs text-[#9B9490] mb-4 truncate">{recipe.title}</p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={onAddToCollection}
+            className="flex items-center gap-3 w-full px-4 py-4 rounded-xl bg-[#F7F3EE] text-left"
+          >
+            <FolderPlus size={18} className="text-[#2D7A5A]" />
+            <span className="text-sm font-semibold text-[#1A2E1A]">Add to collection</span>
+          </button>
+          <button
+            onClick={onUnsave}
+            className="flex items-center gap-3 w-full px-4 py-4 rounded-xl bg-[#F7F3EE] text-left"
+          >
+            <Trash2 size={18} className="text-red-500" />
+            <span className="text-sm font-semibold text-red-500">Remove from saved</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-full px-4 py-4 rounded-xl bg-[#F0EBE4]"
+          >
+            <span className="text-sm font-semibold text-[#9B9490]">Cancel</span>
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ─── Unsave confirm sheet ──────────────────────────────────────────────────
+function UnsaveSheet({ recipe, onConfirm, onCancel }) {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onCancel} />
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl z-50 px-6 pt-5 pb-10">
+        <p className="font-display text-lg font-bold text-[#1A2E1A] mb-1">Remove from saved?</p>
+        <p className="text-sm text-[#9B9490] mb-6">"{recipe.title}" will be removed from your saved recipes.</p>
+        <div className="flex flex-col gap-3">
+          <button onClick={onConfirm} className="w-full bg-red-500 text-white font-bold py-4 rounded-2xl text-[15px]">Remove</button>
+          <button onClick={onCancel} className="w-full bg-white border border-[#EDE8E0] text-[#1A2E1A] font-semibold py-4 rounded-2xl text-[15px]">Keep saved</button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ─── Recipe card (with long-press) ─────────────────────────────────────────
+function RecipeCard({ recipe, onTap, onLongPress }) {
   const [thumbError, setThumbError] = useState(false)
-  const thumbnail = getYouTubeThumbnail(recipe.source?.url)
-  const totalTime = recipe.totalTimeMinutes ||
-    ((recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0)) || null
-  const time = formatTime(totalTime)
-  const accent = accentColor(recipe.cuisine)
+  const thumbnail = getYouTubeThumbnail(recipe.source?.url || recipe.sourceUrl)
+  const accent = accentColor(recipe.cuisineRegion || recipe.cuisine)
+  const pressTimer = useRef(null)
+
+  function startPress() {
+    pressTimer.current = setTimeout(() => onLongPress(recipe), 500)
+  }
+  function cancelPress() {
+    clearTimeout(pressTimer.current)
+  }
 
   return (
     <button
       onClick={() => onTap(recipe)}
+      onMouseDown={startPress}
+      onMouseUp={cancelPress}
+      onMouseLeave={cancelPress}
+      onTouchStart={startPress}
+      onTouchEnd={cancelPress}
+      onTouchCancel={cancelPress}
       className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#EDE8E0] text-left w-full active:scale-[0.98] transition-transform"
     >
-      {/* Cuisine accent bar */}
       <div className="h-1 w-full" style={{ backgroundColor: accent }} />
-
       <div className="p-3">
-        {/* Thumbnail */}
         <div className="w-full h-24 rounded-xl overflow-hidden bg-[#F0EBE4]">
           {thumbnail && !thumbError ? (
-            <img
-              src={thumbnail}
-              alt={recipe.title}
-              className="w-full h-full object-cover"
-              onError={() => setThumbError(true)}
-            />
+            <img src={thumbnail} alt={recipe.title} className="w-full h-full object-cover" onError={() => setThumbError(true)} />
           ) : (
-            <div
-              className="w-full h-full rounded-xl"
-              style={{ background: `linear-gradient(135deg, ${accent}33 0%, ${accent}11 100%)` }}
-            />
+            <div className="w-full h-full rounded-xl" style={{ background: `linear-gradient(135deg, ${accent}33 0%, ${accent}11 100%)` }} />
           )}
         </div>
-
-        {/* Title */}
         <p
           className="font-display text-sm font-bold text-[#1A2E1A] mt-2 leading-snug"
-          style={{
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
+          style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
         >
           {recipe.title}
         </p>
-
-        {/* Channel */}
-        {recipe.source?.channelName && (
+        {(recipe.source?.channelName || recipe.channelName) && (
           <p className="text-[11px] text-[#9B9490] mt-0.5 truncate">
-            By {recipe.source.channelName}
+            By {recipe.source?.channelName || recipe.channelName}
           </p>
         )}
-
-        {/* Bottom row */}
-        <div className="flex items-center justify-between mt-2">
-          {time ? (
-            <span className="text-[11px] text-[#9B9490] bg-[#F0EBE4] rounded-full px-2 py-0.5">
-              {time}
-            </span>
-          ) : (
-            <span />
-          )}
-          <button
-            onClick={e => { e.stopPropagation(); onUnsave(recipe) }}
-            className="w-7 h-7 rounded-full flex items-center justify-center"
-          >
-            <Heart size={15} className="text-[#E8611A] fill-[#E8611A]" />
-          </button>
+        {/* Collection badges */}
+        {recipe.collections?.length > 0 && (
+          <div className="flex gap-1 mt-1.5 flex-wrap">
+            {recipe.collections.slice(0, 2).map(c => (
+              <span key={c.id} className="text-[10px] bg-[#F0EBE4] text-[#9B9490] px-2 py-0.5 rounded-full">
+                {c.emoji} {c.name}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center justify-end mt-2">
+          <Heart size={15} className="text-[#E8611A] fill-[#E8611A]" />
         </div>
       </div>
     </button>
@@ -157,41 +303,8 @@ function SkeletonCard() {
         <div className="w-full h-24 rounded-xl bg-[#F0EBE4] animate-pulse" />
         <div className="h-3 bg-[#F0EBE4] rounded-full mt-3 animate-pulse w-4/5" />
         <div className="h-3 bg-[#F0EBE4] rounded-full mt-1.5 animate-pulse w-2/5" />
-        <div className="flex justify-between mt-3">
-          <div className="h-4 w-12 bg-[#F0EBE4] rounded-full animate-pulse" />
-          <div className="h-4 w-4 bg-[#F0EBE4] rounded-full animate-pulse" />
-        </div>
       </div>
     </div>
-  )
-}
-
-// ─── Unsave confirm sheet ──────────────────────────────────────────────────
-function UnsaveSheet({ recipe, onConfirm, onCancel }) {
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onCancel} />
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl z-50 px-6 pt-5 pb-10">
-        <p className="font-display text-lg font-bold text-[#1A2E1A] mb-1">Remove from saved?</p>
-        <p className="text-sm text-[#9B9490] mb-6">
-          "{recipe.title}" will be removed from your saved recipes.
-        </p>
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={onConfirm}
-            className="w-full bg-red-500 text-white font-bold py-4 rounded-2xl text-[15px]"
-          >
-            Remove
-          </button>
-          <button
-            onClick={onCancel}
-            className="w-full bg-white border border-[#EDE8E0] text-[#1A2E1A] font-semibold py-4 rounded-2xl text-[15px]"
-          >
-            Keep saved
-          </button>
-        </div>
-      </div>
-    </>
   )
 }
 
@@ -200,52 +313,69 @@ export default function SavedRecipes() {
   const navigate = useNavigate()
   const session = useSession()
 
-  const [recipes, setRecipes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [activeFilter, setActiveFilter] = useState('All')
+  const [recipes, setRecipes]       = useState([])
+  const [collections, setCollections] = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState(null)
+  const [activeCol, setActiveCol]   = useState(null) // null = All
   const [searchOpen, setSearchOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const [unsaveTarget, setUnsaveTarget] = useState(null)
+  const [query, setQuery]           = useState('')
+
+  // sheets
+  const [createSheet, setCreateSheet]         = useState(false)
+  const [addColTarget, setAddColTarget]       = useState(null) // recipe for add-to-collection
+  const [actionTarget, setActionTarget]       = useState(null) // recipe for long-press menu
+  const [unsaveTarget, setUnsaveTarget]       = useState(null)
+
+  function loadAll(token) {
+    setLoading(true)
+    Promise.all([
+      getSavedRecipes(token).catch(() => []),
+      getCollections(token).catch(() => []),
+    ]).then(([r, c]) => {
+      setRecipes(Array.isArray(r) ? r : r.recipes || [])
+      setCollections(Array.isArray(c) ? c : [])
+    }).catch(() => setError('Could not load your recipes.')).finally(() => setLoading(false))
+  }
 
   useEffect(() => {
-    if (!session) return
-    setLoading(true)
-    getSavedRecipes(session.access_token)
-      .then(data => setRecipes(Array.isArray(data) ? data : data.recipes || []))
-      .catch(() => setError('Could not load your recipes.'))
-      .finally(() => setLoading(false))
+    if (session) loadAll(session.access_token)
   }, [session])
 
-  const filtered = useMemo(() => {
+  const visibleRecipes = useMemo(() => {
     let list = recipes
     if (query.trim()) {
       const q = query.toLowerCase()
       list = list.filter(r => r.title?.toLowerCase().includes(q))
     }
-    return list.filter(r => matchesFilter(r, activeFilter))
-  }, [recipes, activeFilter, query])
+    if (activeCol) {
+      list = list.filter(r => r.collections?.some(c => c.id === activeCol.id))
+    }
+    return list
+  }, [recipes, activeCol, query])
 
   function openRecipe(recipe) {
     const id = recipe.id || recipe.recipeId
     navigate(id ? `/recipe/${id}` : '/recipe', { state: { recipe } })
   }
 
-  function handleUnsave(recipe) {
-    setUnsaveTarget(recipe)
-  }
-
   function confirmUnsave() {
-    const id = unsaveTarget.id || unsaveTarget.recipeId
-    setRecipes(prev => prev.filter(r => (r.id || r.recipeId) !== id))
+    const id = unsaveTarget.id || unsaveTarget.recipeId || unsaveTarget.userRecipeId
+    setRecipes(prev => prev.filter(r => (r.id || r.recipeId || r.userRecipeId) !== id))
     setUnsaveTarget(null)
-    // Fire-and-forget unsave API call if endpoint exists
-    // unsaveRecipe(id, session.access_token).catch(() => {})
   }
 
-  const isFiltered = activeFilter !== 'All' || query.trim().length > 0
+  function handleCollectionCreated(col) {
+    setCollections(prev => [{ ...col, recipeCount: 0 }, ...prev])
+    setActiveCol(col)
+    setCreateSheet(false)
+  }
 
-  // Guest wall — show inline prompt instead of redirecting
+  function handleColCreatedFromAddSheet(col) {
+    setCollections(prev => [{ ...col, recipeCount: 0 }, ...prev])
+  }
+
+  // ── Guest wall ──────────────────────────────────────────────────────────
   if (session === null) {
     return (
       <div className="flex flex-col min-h-screen bg-[#FDF6EC] pb-24">
@@ -260,16 +390,10 @@ export default function SavedRecipes() {
           <p className="text-sm text-[#9B9490] leading-relaxed mb-6">
             Save unlimited recipes and access them across all your devices.
           </p>
-          <button
-            onClick={() => navigate('/auth')}
-            className="bg-[#E8611A] text-white font-semibold px-8 py-3 rounded-full text-sm"
-          >
+          <button onClick={() => navigate('/auth')} className="bg-[#E8611A] text-white font-semibold px-8 py-3 rounded-full text-sm">
             Sign in
           </button>
-          <button
-            onClick={() => navigate('/auth')}
-            className="mt-3 text-sm text-[#9B9490] underline underline-offset-2"
-          >
+          <button onClick={() => navigate('/auth')} className="mt-3 text-sm text-[#9B9490] underline underline-offset-2">
             Create free account
           </button>
         </div>
@@ -281,7 +405,7 @@ export default function SavedRecipes() {
     <div className="flex flex-col min-h-screen bg-[#FDF6EC] pb-24">
 
       {/* Top bar */}
-      <div className="px-5 pt-14 pb-2 flex items-center justify-between">
+      <div className="px-5 pt-14 pb-2 flex items-center justify-between gap-3">
         {searchOpen ? (
           <div className="flex-1 flex items-center gap-3 bg-white border border-[#EDE8E0] rounded-2xl px-4 py-2.5">
             <Search size={16} className="text-[#9B9490] shrink-0" />
@@ -293,42 +417,75 @@ export default function SavedRecipes() {
               placeholder="Search saved recipes…"
               className="flex-1 text-sm bg-transparent outline-none text-[#1A2E1A] placeholder:text-[#C0B8AF]"
             />
-            <button
-              onClick={() => { setSearchOpen(false); setQuery('') }}
-              className="shrink-0"
-            >
+            <button onClick={() => { setSearchOpen(false); setQuery('') }}>
               <X size={16} className="text-[#9B9490]" />
             </button>
           </div>
         ) : (
           <>
-            <h1 className="font-display text-xl font-bold text-[#1A2E1A]">My Recipes</h1>
+            <h1 className="font-display text-xl font-bold text-[#1A2E1A] flex-1">My Recipes</h1>
             <button
               onClick={() => setSearchOpen(true)}
-              className="w-9 h-9 rounded-full bg-white border border-[#EDE8E0] flex items-center justify-center"
+              className="w-9 h-9 rounded-full bg-white border border-[#EDE8E0] flex items-center justify-center shrink-0"
             >
               <Search size={17} className="text-[#5A6B5A]" />
+            </button>
+            <button
+              onClick={() => setCreateSheet(true)}
+              className="flex items-center gap-1.5 bg-[#E8611A] text-white text-xs font-bold px-3 py-2 rounded-full shrink-0"
+            >
+              <Plus size={13} />
+              New
             </button>
           </>
         )}
       </div>
 
-      {/* Filter chips */}
-      <div className="flex gap-2 overflow-x-auto px-5 mt-4 pb-1 no-scrollbar shrink-0">
-        {FILTERS.map(f => (
+      {/* Collection tabs */}
+      <div className="flex gap-2 overflow-x-auto px-5 mt-3 pb-1 no-scrollbar shrink-0">
+        {/* All Recipes tab */}
+        <button
+          onClick={() => setActiveCol(null)}
+          className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+            !activeCol ? 'bg-[#E8611A] text-white border-[#E8611A]' : 'bg-white text-[#9B9490] border-[#EDE8E0]'
+          }`}
+        >
+          All Recipes
+        </button>
+        {collections.map(col => (
           <button
-            key={f}
-            onClick={() => setActiveFilter(f)}
-            className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-              activeFilter === f
-                ? 'bg-[#E8611A] text-white border-[#E8611A]'
-                : 'bg-white text-[#9B9490] border-[#EDE8E0]'
+            key={col.id}
+            onClick={() => setActiveCol(col)}
+            className={`shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors whitespace-nowrap ${
+              activeCol?.id === col.id ? 'bg-[#E8611A] text-white border-[#E8611A]' : 'bg-white text-[#9B9490] border-[#EDE8E0]'
             }`}
           >
-            {f}
+            {col.emoji && <span>{col.emoji}</span>}
+            {col.name}
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+              activeCol?.id === col.id ? 'bg-white/25 text-white' : 'bg-[#F0EBE4] text-[#9B9490]'
+            }`}>
+              {col.recipeCount}
+            </span>
           </button>
         ))}
       </div>
+
+      {/* Collection edit bar */}
+      {activeCol && (
+        <div className="flex items-center justify-between px-5 mt-2">
+          <p className="text-xs text-[#9B9490]">
+            {activeCol.emoji} {activeCol.name}
+          </p>
+          <button
+            onClick={() => {/* future: edit/delete sheet */}}
+            className="flex items-center gap-1 text-xs text-[#9B9490]"
+          >
+            <Pencil size={11} />
+            Edit
+          </button>
+        </div>
+      )}
 
       {/* Content */}
       {loading ? (
@@ -336,43 +493,89 @@ export default function SavedRecipes() {
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : error ? (
-        <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
-          <p className="text-sm text-[#9B9490] mb-4">{error}</p>
-          <button
-            onClick={() => {
-              setError(null)
-              setLoading(true)
-              getSavedRecipes(session.access_token)
-                .then(data => setRecipes(Array.isArray(data) ? data : data.recipes || []))
-                .catch(() => setError('Could not load your recipes.'))
-                .finally(() => setLoading(false))
-            }}
-            className="text-[#E8611A] font-semibold text-sm"
-          >
-            Try again
-          </button>
+        <div className="flex flex-col items-center justify-center py-20 px-8 text-center gap-3">
+          <p className="text-sm text-[#9B9490]">{error}</p>
+          <button onClick={() => loadAll(session.access_token)} className="text-[#E8611A] font-semibold text-sm">Try again</button>
         </div>
-      ) : filtered.length === 0 ? (
-        <EmptyState filtered={isFiltered} onExtract={() => navigate('/extract')} />
+      ) : visibleRecipes.length === 0 ? (
+        activeCol ? (
+          /* Collection empty state */
+          <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
+            <p className="text-4xl mb-3">{activeCol.emoji || '📁'}</p>
+            <p className="font-display text-lg font-bold text-[#1A2E1A] mb-1">{activeCol.name}</p>
+            <p className="text-sm text-[#9B9490] mb-1">No recipes in this collection yet</p>
+            <p className="text-xs text-[#9B9490] mb-6">Browse your saved recipes and add them here</p>
+            <button
+              onClick={() => setActiveCol(null)}
+              className="bg-[#E8611A] text-white font-semibold px-6 py-3 rounded-full text-sm"
+            >
+              Browse saved recipes
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-[#FEF0E8] flex items-center justify-center mb-4">
+              <BookOpen size={28} className="text-[#E8611A]" />
+            </div>
+            <p className="font-display text-lg font-bold text-[#1A2E1A] mb-1">
+              {query ? 'No matches' : 'No saved recipes yet'}
+            </p>
+            <p className="text-sm text-[#9B9490] leading-relaxed mb-6">
+              {query ? 'Try a different search term.' : 'Extract recipes from YouTube videos and save them here.'}
+            </p>
+            {!query && (
+              <button onClick={() => navigate('/')} className="bg-[#E8611A] text-white font-semibold px-6 py-3 rounded-full text-sm">
+                Extract a recipe
+              </button>
+            )}
+          </div>
+        )
       ) : (
         <>
           <p className="text-xs text-[#9B9490] font-medium mx-5 mt-4 mb-1">
-            {filtered.length} recipe{filtered.length !== 1 ? 's' : ''}
+            {visibleRecipes.length} recipe{visibleRecipes.length !== 1 ? 's' : ''}
           </p>
           <div className="grid grid-cols-2 gap-3 mx-5">
-            {filtered.map((r, i) => (
+            {visibleRecipes.map((r, i) => (
               <RecipeCard
-                key={r.id || r.recipeId || i}
+                key={r.id || r.recipeId || r.userRecipeId || i}
                 recipe={r}
                 onTap={openRecipe}
-                onUnsave={handleUnsave}
+                onLongPress={r => setActionTarget(r)}
               />
             ))}
           </div>
         </>
       )}
 
-      {/* Unsave confirmation sheet */}
+      {/* Sheets */}
+      {createSheet && (
+        <CreateCollectionSheet
+          session={session}
+          onClose={() => setCreateSheet(false)}
+          onCreated={handleCollectionCreated}
+        />
+      )}
+
+      {addColTarget && (
+        <AddToCollectionSheet
+          recipe={addColTarget}
+          collections={collections}
+          session={session}
+          onClose={() => setAddColTarget(null)}
+          onCollectionCreated={handleColCreatedFromAddSheet}
+        />
+      )}
+
+      {actionTarget && (
+        <CardActionSheet
+          recipe={actionTarget}
+          onAddToCollection={() => { setAddColTarget(actionTarget); setActionTarget(null) }}
+          onUnsave={() => { setUnsaveTarget(actionTarget); setActionTarget(null) }}
+          onClose={() => setActionTarget(null)}
+        />
+      )}
+
       {unsaveTarget && (
         <UnsaveSheet
           recipe={unsaveTarget}

@@ -1,9 +1,9 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Heart, Play, Clock, Zap, Users, BarChart2, X, ChefHat, Info, Loader2 } from 'lucide-react'
+import { ArrowLeft, Heart, Play, Clock, Zap, Users, BarChart2, X, ChefHat, Info, Loader2, FolderPlus, Check, Plus } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, FREE_LIMIT } from '../lib/localExtractions'
-import { getRecipe } from '../lib/api'
+import { getRecipe, getCollections, createCollection, addToCollection, removeFromCollection } from '../lib/api'
 
 function formatTime(mins) {
   if (!mins) return '—'
@@ -35,6 +35,10 @@ export default function RecipePage() {
   const [authSheet, setAuthSheet] = useState(null)
   const [checkedSteps, setCheckedSteps] = useState(new Set())
   const [tooltip, setTooltip] = useState(null)
+  const [addColSheet, setAddColSheet] = useState(false)
+  const [collections, setCollections] = useState([])
+  const [colBusy, setColBusy] = useState(null)
+  const [colMemberships, setColMemberships] = useState(new Set())
   const session = useSession()
   const localCount = getLocalExtractions().length
 
@@ -305,16 +309,99 @@ export default function RecipePage() {
           >
             Start Cooking
           </button>
-          <button
-            onClick={() => session ? setSaved(s => !s) : setAuthSheet('save')}
-            className={`w-14 rounded-2xl flex items-center justify-center border transition-colors ${
-              saved && session ? 'bg-[#E8611A] border-[#E8611A]' : 'bg-white border-[#EDE8E0]'
-            }`}
-          >
-            <Heart size={20} className={saved && session ? 'text-white fill-white' : 'text-[#9B9490]'} />
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={() => session ? setSaved(s => !s) : setAuthSheet('save')}
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center border transition-colors ${
+                saved && session ? 'bg-[#E8611A] border-[#E8611A]' : 'bg-white border-[#EDE8E0]'
+              }`}
+            >
+              <Heart size={20} className={saved && session ? 'text-white fill-white' : 'text-[#9B9490]'} />
+            </button>
+            {saved && session && (
+              <button
+                onClick={async () => {
+                  if (!collections.length) {
+                    const cols = await getCollections(session.access_token).catch(() => [])
+                    setCollections(Array.isArray(cols) ? cols : [])
+                    const userRecipeId = recipe.userRecipeId
+                    if (userRecipeId) setColMemberships(new Set((recipe.collections || []).map(c => c.id)))
+                  }
+                  setAddColSheet(true)
+                }}
+                className="text-[10px] text-[#E8611A] font-semibold whitespace-nowrap"
+              >
+                + Collection
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Add to collection sheet */}
+      {addColSheet && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setAddColSheet(false)} />
+          <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl z-50 px-6 pt-5 pb-10">
+            <div className="w-10 h-1 bg-[#EDE8E0] rounded-full mx-auto mb-5" />
+            <h3 className="font-display text-xl font-bold text-[#1A2E1A] mb-1">Add to collection</h3>
+            <p className="text-sm text-[#9B9490] mb-5 truncate">{recipe.title}</p>
+            <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
+              {collections.map(col => {
+                const inCol = colMemberships.has(col.id)
+                return (
+                  <button
+                    key={col.id}
+                    onClick={async () => {
+                      if (colBusy) return
+                      const userRecipeId = recipe.userRecipeId
+                      if (!userRecipeId) return
+                      setColBusy(col.id)
+                      try {
+                        if (inCol) {
+                          await removeFromCollection(col.id, userRecipeId, session.access_token)
+                          setColMemberships(prev => { const s = new Set(prev); s.delete(col.id); return s })
+                        } else {
+                          await addToCollection(col.id, userRecipeId, session.access_token)
+                          setColMemberships(prev => new Set([...prev, col.id]))
+                        }
+                      } catch { /* silent */ }
+                      finally { setColBusy(null) }
+                    }}
+                    className="flex items-center gap-3 bg-[#F7F3EE] rounded-xl px-4 py-3 text-left"
+                  >
+                    <span className="text-xl shrink-0">{col.emoji || '📁'}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#1A2E1A]">{col.name}</p>
+                      <p className="text-xs text-[#9B9490]">{col.recipeCount} recipe{col.recipeCount !== 1 ? 's' : ''}</p>
+                    </div>
+                    {colBusy === col.id
+                      ? <Loader2 size={16} className="animate-spin text-[#9B9490] shrink-0" />
+                      : inCol
+                        ? <div className="w-6 h-6 rounded-full bg-[#E8611A] flex items-center justify-center shrink-0">
+                            <Check size={13} className="text-white" strokeWidth={3} />
+                          </div>
+                        : <div className="w-6 h-6 rounded-full border-2 border-[#EDE8E0] shrink-0" />
+                    }
+                  </button>
+                )
+              })}
+              {collections.length === 0 && (
+                <p className="text-sm text-[#9B9490] py-4 text-center">No collections yet. Create one below.</p>
+              )}
+            </div>
+            <button
+              onClick={() => { /* navigate to saved page to create collection */ navigate('/saved') }}
+              className="mt-3 flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-dashed border-[#E8611A] text-left"
+            >
+              <div className="w-8 h-8 rounded-full bg-[#FEF0E8] flex items-center justify-center shrink-0">
+                <Plus size={15} className="text-[#E8611A]" />
+              </div>
+              <span className="text-sm font-semibold text-[#E8611A]">Create new collection</span>
+            </button>
+          </div>
+        </>
+      )}
 
       {/* Auth gate sheet */}
       {authSheet && (

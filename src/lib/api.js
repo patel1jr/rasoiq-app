@@ -37,6 +37,51 @@ export async function getRecipe(id) {
   return res.json()
 }
 
+export async function getCollections(token) {
+  const res = await fetch(`${API_URL}/api/collections`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
+export async function createCollection(name, emoji, token) {
+  const res = await fetch(`${API_URL}/api/collections`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ name, emoji })
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
+export async function addToCollection(collectionId, userRecipeId, token) {
+  const res = await fetch(`${API_URL}/api/collections/${collectionId}/recipes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ userRecipeId })
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
+export async function removeFromCollection(collectionId, userRecipeId, token) {
+  const res = await fetch(`${API_URL}/api/collections/${collectionId}/recipes/${userRecipeId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
+export async function getCollectionRecipes(collectionId, token) {
+  const res = await fetch(`${API_URL}/api/collections/${collectionId}/recipes`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
 export async function logMeal(data, token) {
   const res = await fetch(`${API_URL}/api/meal-log`, {
     method: 'POST',

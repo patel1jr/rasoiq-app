@@ -30,6 +30,13 @@ export default function RecipePage() {
   const [activeTab, setActiveTab] = useState('ingredients')
   const [saved, setSaved] = useState(!!(state?.recipe?.userRecipeId))
   const [userRecipeId, setUserRecipeId] = useState(state?.recipe?.userRecipeId || null)
+  // Sync saved/userRecipeId when recipe loads (partial state → full fetch merges userRecipeId)
+  useEffect(() => {
+    if (recipe?.userRecipeId && !userRecipeId) {
+      setSaved(true)
+      setUserRecipeId(recipe.userRecipeId)
+    }
+  }, [recipe])
   const [saveLoading, setSaveLoading] = useState(false)
   const [servings, setServings] = useState(null)
   const [techniqueSheet, setTechniqueSheet] = useState(null)
@@ -45,15 +52,25 @@ export default function RecipePage() {
   const localCount = getLocalExtractions().length
 
   useEffect(() => {
-    if (state?.recipe) {
-      setRecipe(state.recipe)
-      setServings(state.recipe.servings ?? 4)
+    const stateRecipe = state?.recipe
+    // A full recipe has ingredients or steps. A partial (from saved list) only has title/savedAt.
+    const isFullRecipe = stateRecipe && (stateRecipe.ingredients?.length || stateRecipe.steps?.length)
+    if (isFullRecipe) {
+      setRecipe(stateRecipe)
+      setServings(stateRecipe.servings ?? 4)
       return
     }
-    if (!id) { navigate('/'); return }
+    // Need to fetch — use id from URL, or recipeId from partial state object
+    const fetchId = id || stateRecipe?.recipeId || stateRecipe?.id
+    if (!fetchId) { navigate('/'); return }
     setLoadingRecipe(true)
-    getRecipe(id)
-      .then(r => { setRecipe(r); setServings(r.servings ?? 4) })
+    getRecipe(fetchId)
+      .then(r => {
+        // Merge userRecipeId from state so heart initialises correctly
+        if (stateRecipe?.userRecipeId) r.userRecipeId = stateRecipe.userRecipeId
+        setRecipe(r)
+        setServings(r.servings ?? 4)
+      })
       .catch(() => setFetchError('Could not load recipe.'))
       .finally(() => setLoadingRecipe(false))
   }, [id])
@@ -328,8 +345,9 @@ export default function RecipePage() {
                     setSaved(true)
                     setUserRecipeId(result.userRecipeId)
                   }
-                } catch { /* silently ignore duplicate save or network error */ }
-                finally { setSaveLoading(false) }
+                } catch (err) {
+                  console.error('save/unsave failed:', err)
+                } finally { setSaveLoading(false) }
               }}
               className={`w-14 h-14 rounded-2xl flex items-center justify-center border transition-colors ${
                 saved && session ? 'bg-[#E8611A] border-[#E8611A]' : 'bg-white border-[#EDE8E0]'

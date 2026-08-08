@@ -245,6 +245,8 @@ function RecipeCard({ recipe, onTap, onLongPress }) {
     clearTimeout(pressTimer.current)
   }
 
+  const showThumb = thumbnail && !thumbError
+
   return (
     <button
       onClick={() => onTap(recipe)}
@@ -256,24 +258,41 @@ function RecipeCard({ recipe, onTap, onLongPress }) {
       onTouchCancel={cancelPress}
       className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#EDE8E0] text-left w-full active:scale-[0.98] transition-transform"
     >
-      <div className="h-1 w-full" style={{ backgroundColor: accent }} />
-      <div className="p-3">
-        <div className="w-full h-24 rounded-xl overflow-hidden bg-[#F0EBE4]">
-          {thumbnail && !thumbError ? (
-            <img src={thumbnail} alt={recipe.title} className="w-full h-full object-cover" onError={() => setThumbError(true)} />
-          ) : (
-            <div className="w-full h-full rounded-xl" style={{ background: `linear-gradient(135deg, ${accent}33 0%, ${accent}11 100%)` }} />
-          )}
+      {/* Accent bar — thicker + full-bleed when no image */}
+      {showThumb ? (
+        <div className="relative w-full h-28 overflow-hidden">
+          <img
+            src={thumbnail}
+            alt={recipe.title}
+            className="w-full h-full object-cover"
+            onError={() => setThumbError(true)}
+          />
+          <div className="absolute bottom-0 left-0 right-0 h-8"
+            style={{ background: 'linear-gradient(to top, rgba(255,255,255,0.7), transparent)' }} />
         </div>
+      ) : (
+        <div className="h-1.5 w-full" style={{ backgroundColor: accent }} />
+      )}
+
+      <div className="p-3">
+        {/* Cuisine dot + region when no image */}
+        {!showThumb && (recipe.cuisineRegion || recipe.cuisine) && (
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+            <p className="text-[10px] font-semibold text-[#9B9490] uppercase tracking-wide truncate">
+              {recipe.cuisineRegion || recipe.cuisine}
+            </p>
+          </div>
+        )}
         <p
-          className="font-display text-sm font-bold text-[#1A2E1A] mt-2 leading-snug"
-          style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+          className="font-display text-sm font-bold text-[#1A2E1A] leading-snug"
+          style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
         >
           {recipe.title}
         </p>
         {(recipe.source?.channelName || recipe.channelName) && (
           <p className="text-[11px] text-[#9B9490] mt-0.5 truncate">
-            By {recipe.source?.channelName || recipe.channelName}
+            {recipe.source?.channelName || recipe.channelName}
           </p>
         )}
         {/* Collection badges */}

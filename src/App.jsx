@@ -12,7 +12,7 @@ import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import BottomNav from './components/BottomNav'
 
-const HIDE_NAV = ['/recipe', '/cook', '/auth']
+const HIDE_NAV = ['/recipe', '/cook', '/auth', '/log']
 
 function App() {
   const location = useLocation()
@@ -21,7 +21,8 @@ function App() {
   return (
     <div className="min-h-screen bg-[#FDF6EC] max-w-md mx-auto relative">
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<ExtractPage />} />
+        <Route path="/dashboard" element={<HomePage />} />
         <Route path="/extract" element={<ExtractPage />} />
         <Route path="/recipe/:id" element={<RecipePage />} />
         <Route path="/recipe" element={<RecipePage />} />

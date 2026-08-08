@@ -24,11 +24,11 @@ function formatDate(iso) {
 }
 
 function formatMealName(entry) {
-  if (entry.customName) return entry.customName
-  if (entry.name) return entry.name
-  if (entry.stapleId) return entry.stapleId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-  if (entry.recipeTitle) return entry.recipeTitle
-  return 'Meal'
+  return entry.customName
+    || entry.name
+    || entry.stapleId?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    || entry.recipeTitle
+    || 'Meal'
 }
 
 const MEAL_TYPE_COLORS = {

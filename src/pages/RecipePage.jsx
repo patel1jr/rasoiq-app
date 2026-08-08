@@ -338,10 +338,10 @@ export default function RecipePage() {
                 : 'Save unlimited recipes to your collection and access them anytime.'}
             </p>
             <div className="flex flex-col gap-3">
-              <button onClick={() => navigate('/auth')} className="w-full bg-[#E8611A] text-white font-bold py-4 rounded-2xl text-[15px]">
+              <button onClick={() => { localStorage.setItem('pendingRecipe', JSON.stringify(recipe)); navigate('/auth') }} className="w-full bg-[#E8611A] text-white font-bold py-4 rounded-2xl text-[15px]">
                 Sign in
               </button>
-              <button onClick={() => navigate('/auth')} className="w-full bg-white border border-[#EDE8E0] text-[#1A2E1A] font-semibold py-4 rounded-2xl text-[15px]">
+              <button onClick={() => { localStorage.setItem('pendingRecipe', JSON.stringify(recipe)); navigate('/auth') }} className="w-full bg-white border border-[#EDE8E0] text-[#1A2E1A] font-semibold py-4 rounded-2xl text-[15px]">
                 Create free account
               </button>
               <button onClick={() => setAuthSheet(null)} className="text-sm text-[#9B9490] text-center py-1">

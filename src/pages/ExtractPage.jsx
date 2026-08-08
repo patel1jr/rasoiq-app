@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Smartphone, Check, Loader2, AlertCircle, UtensilsCrossed, X, Lock, Clock } from 'lucide-react'
+import { Smartphone, Check, Loader2, AlertCircle, UtensilsCrossed, X, Lock, Clock, ChefHat, ChevronRight } from 'lucide-react'
 import { extractRecipe } from '../lib/api'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, addLocalExtraction, isAtLimit, FREE_LIMIT } from '../lib/localExtractions'
@@ -252,12 +252,19 @@ export default function ExtractPage() {
         )}
       </div>
 
-      <div className="px-5 py-8 text-center">
+      <div className="px-5 pt-3 pb-8">
         <button
           onClick={() => navigate('/log')}
-          className="text-sm text-[#5A6B5A] underline underline-offset-2"
+          className="w-full bg-white border border-[#EDE8E0] rounded-2xl p-4 flex items-center gap-3 text-left"
         >
-          Or log a meal you already cooked
+          <div className="w-10 h-10 rounded-xl bg-[#FEF0E8] flex items-center justify-center shrink-0">
+            <ChefHat size={18} className="text-[#E8611A]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-[#1A2E1A]">Log a meal you cooked</p>
+            <p className="text-xs text-[#9B9490] truncate mt-0.5">Dal Roti, Aloo Sabzi, Rajma…</p>
+          </div>
+          <ChevronRight size={18} className="text-[#C0B8AF] shrink-0" />
         </button>
       </div>
 

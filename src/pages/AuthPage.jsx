@@ -30,7 +30,13 @@ export default function AuthPage() {
   }
 
   if (session) {
-    navigate('/profile', { replace: true })
+    const pending = localStorage.getItem('pendingRecipe')
+    if (pending) {
+      localStorage.removeItem('pendingRecipe')
+      navigate('/recipe/pending', { replace: true, state: { recipe: JSON.parse(pending) } })
+    } else {
+      navigate('/', { replace: true })
+    }
     return null
   }
 
@@ -59,7 +65,13 @@ function LoginScreen({ navigate }) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
         await migrateLocalRecipes(data.session.access_token)
-        navigate('/')
+        const pending = localStorage.getItem('pendingRecipe')
+        if (pending) {
+          localStorage.removeItem('pendingRecipe')
+          navigate('/recipe/pending', { state: { recipe: JSON.parse(pending) } })
+        } else {
+          navigate('/')
+        }
       } else {
         const { error } = await supabase.auth.signUp({
           email,

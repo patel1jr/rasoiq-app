@@ -101,11 +101,9 @@ function RecipeCard({ recipe, onTap, onUnsave }) {
             />
           ) : (
             <div
-              className="w-full h-full flex items-center justify-center"
-              style={{ backgroundColor: accent + '22' }}
-            >
-              <span className="text-2xl">🍲</span>
-            </div>
+              className="w-full h-full rounded-xl"
+              style={{ background: `linear-gradient(135deg, ${accent}33 0%, ${accent}11 100%)` }}
+            />
           )}
         </div>
 
@@ -210,11 +208,6 @@ export default function SavedRecipes() {
   const [query, setQuery] = useState('')
   const [unsaveTarget, setUnsaveTarget] = useState(null)
 
-  // Redirect guests to auth
-  useEffect(() => {
-    if (session === null) navigate('/auth', { replace: true })
-  }, [session])
-
   useEffect(() => {
     if (!session) return
     setLoading(true)
@@ -251,6 +244,38 @@ export default function SavedRecipes() {
   }
 
   const isFiltered = activeFilter !== 'All' || query.trim().length > 0
+
+  // Guest wall — show inline prompt instead of redirecting
+  if (session === null) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[#FDF6EC] pb-24">
+        <div className="px-5 pt-14 pb-2">
+          <h1 className="font-display text-xl font-bold text-[#1A2E1A]">My Recipes</h1>
+        </div>
+        <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-[#FEF0E8] flex items-center justify-center mb-4">
+            <BookOpen size={28} className="text-[#E8611A]" />
+          </div>
+          <p className="font-display text-lg font-bold text-[#1A2E1A] mb-1">Sign in to see your recipes</p>
+          <p className="text-sm text-[#9B9490] leading-relaxed mb-6">
+            Save unlimited recipes and access them across all your devices.
+          </p>
+          <button
+            onClick={() => navigate('/auth')}
+            className="bg-[#E8611A] text-white font-semibold px-8 py-3 rounded-full text-sm"
+          >
+            Sign in
+          </button>
+          <button
+            onClick={() => navigate('/auth')}
+            className="mt-3 text-sm text-[#9B9490] underline underline-offset-2"
+          >
+            Create free account
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-[#FDF6EC] pb-24">

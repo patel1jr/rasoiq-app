@@ -75,7 +75,7 @@ export default function ExtractPage() {
       clearTimeout(t1)
       clearTimeout(t2)
 
-      if (!session) addLocalExtraction(recipe)
+      addLocalExtraction(recipe, !!session)
 
       const recipeId = recipe.id || recipe.recipeId
       navigate(recipeId ? `/recipe/${recipeId}` : '/recipe', { state: { recipe } })
@@ -226,13 +226,16 @@ export default function ExtractPage() {
           <div className="mt-7">
             <p className="text-xs font-bold text-[#9B9490] uppercase tracking-wider mb-3">Recent</p>
             <div className="flex flex-col gap-2">
-              {localExtractions.slice(0, 3).map((item, i) => (
+              {localExtractions.slice(0, session ? 10 : 3).map((item, i) => (
                 <button
-                  key={i}
+                  key={item.recipeId || i}
                   onClick={() => {
-                    // Recipe data no longer in memory — just re-extract
-                    setUrl('')
-                    setError(null)
+                    const id = item.recipeId
+                    if (item.recipe) {
+                      navigate(id ? `/recipe/${id}` : '/recipe', { state: { recipe: item.recipe } })
+                    } else if (id) {
+                      navigate(`/recipe/${id}`)
+                    }
                   }}
                   className="flex items-center gap-3 bg-white border border-[#EDE8E0] rounded-2xl px-4 py-3.5 text-left"
                 >
@@ -245,6 +248,7 @@ export default function ExtractPage() {
                       {new Date(item.extractedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                     </p>
                   </div>
+                  <ChevronRight size={16} className="text-[#C0B8AF] shrink-0" />
                 </button>
               ))}
             </div>

@@ -110,7 +110,7 @@ export default function ExtractPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#FDF6EC]">
+    <div className="flex flex-col min-h-screen bg-[#FDF6EC] pb-24">
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-14 pb-4">
         <span className="font-display text-2xl font-bold text-[#1A2E1A]">

@@ -237,14 +237,29 @@ export default function ExtractPage() {
           </div>
         )}
 
+        {/* Log a meal CTA */}
+        <div className="mt-5">
+          <button
+            onClick={() => navigate('/log')}
+            className="w-full bg-white border border-[#EDE8E0] rounded-2xl p-4 flex items-center gap-3 text-left"
+          >
+            <div className="w-10 h-10 rounded-xl bg-[#FEF0E8] flex items-center justify-center shrink-0">
+              <ChefHat size={18} className="text-[#E8611A]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-[#1A2E1A]">Log a meal you cooked</p>
+              <p className="text-xs text-[#9B9490] truncate mt-0.5">Dal Roti, Aloo Sabzi, Rajma…</p>
+            </div>
+            <ChevronRight size={18} className="text-[#C0B8AF] shrink-0" />
+          </button>
+        </div>
+
         {/* Recent extractions */}
         {!loading && recentItems.length > 0 && (
-          <div className="mt-7">
+          <div className="mt-7 pb-8">
             <p className="text-xs font-bold text-[#9B9490] uppercase tracking-wider mb-3">Recent</p>
             <div className="flex flex-col gap-2">
               {recentItems.slice(0, 10).map((item, i) => {
-                // API shape: { userRecipeId, recipeId, title, savedAt }
-                // localStorage shape: { recipeId, title, extractedAt, recipe }
                 const id = item.recipeId || item.userRecipeId
                 const title = item.title
                 const date = item.savedAt || item.extractedAt
@@ -276,22 +291,6 @@ export default function ExtractPage() {
             </div>
           </div>
         )}
-      </div>
-
-      <div className="px-5 pt-3 pb-8">
-        <button
-          onClick={() => navigate('/log')}
-          className="w-full bg-white border border-[#EDE8E0] rounded-2xl p-4 flex items-center gap-3 text-left"
-        >
-          <div className="w-10 h-10 rounded-xl bg-[#FEF0E8] flex items-center justify-center shrink-0">
-            <ChefHat size={18} className="text-[#E8611A]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-[#1A2E1A]">Log a meal you cooked</p>
-            <p className="text-xs text-[#9B9490] truncate mt-0.5">Dal Roti, Aloo Sabzi, Rajma…</p>
-          </div>
-          <ChevronRight size={18} className="text-[#C0B8AF] shrink-0" />
-        </button>
       </div>
 
       {/* Limit reached sheet */}

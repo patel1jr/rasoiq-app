@@ -45,9 +45,14 @@ export default function RecipePage() {
   const [checkedSteps, setCheckedSteps] = useState(new Set())
   const [tooltip, setTooltip] = useState(null)
   const [addColSheet, setAddColSheet] = useState(false)
+  const [showCreateCol, setShowCreateCol] = useState(false)
+  const [newColName, setNewColName] = useState('')
+  const [newColEmoji, setNewColEmoji] = useState('🍽️')
+  const [newColLoading, setNewColLoading] = useState(false)
   const [collections, setCollections] = useState([])
   const [colBusy, setColBusy] = useState(null)
   const [colMemberships, setColMemberships] = useState(new Set())
+  const [saveError, setSaveError] = useState(null)
   const session = useSession()
   const localCount = getLocalExtractions().length
 
@@ -347,6 +352,9 @@ export default function RecipePage() {
                   }
                 } catch (err) {
                   console.error('save/unsave failed:', err)
+                  const msg = err?.message || err?.detail || err?.title || ''
+                  setSaveError(msg || 'Could not save recipe. Try again.')
+                  setTimeout(() => setSaveError(null), 3000)
                 } finally { setSaveLoading(false) }
               }}
               className={`w-14 h-14 rounded-2xl flex items-center justify-center border transition-colors ${
@@ -358,15 +366,15 @@ export default function RecipePage() {
                 : <Heart size={20} className={saved && session ? 'text-white fill-white' : 'text-[#9B9490]'} />
               }
             </button>
-            {saved && session && (
+            {saveError && (
+              <p className="text-[9px] text-red-500 text-center max-w-[60px] leading-tight">{saveError}</p>
+            )}
+            {saved && session && !saveError && (
               <button
                 onClick={async () => {
-                  if (!collections.length) {
-                    const cols = await getCollections(session.access_token).catch(() => [])
-                    setCollections(Array.isArray(cols) ? cols : [])
-                    const userRecipeId = recipe.userRecipeId
-                    if (userRecipeId) setColMemberships(new Set((recipe.collections || []).map(c => c.id)))
-                  }
+                  const cols = await getCollections(session.access_token).catch(() => [])
+                  setCollections(Array.isArray(cols) ? cols : [])
+                  if (recipe.userRecipeId) setColMemberships(new Set((recipe.collections || []).map(c => c.id)))
                   setAddColSheet(true)
                 }}
                 className="text-[10px] text-[#E8611A] font-semibold whitespace-nowrap"
@@ -430,15 +438,69 @@ export default function RecipePage() {
                 <p className="text-sm text-[#9B9490] py-4 text-center">No collections yet. Create one below.</p>
               )}
             </div>
-            <button
-              onClick={() => { /* navigate to saved page to create collection */ navigate('/saved') }}
-              className="mt-3 flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-dashed border-[#E8611A] text-left"
-            >
-              <div className="w-8 h-8 rounded-full bg-[#FEF0E8] flex items-center justify-center shrink-0">
-                <Plus size={15} className="text-[#E8611A]" />
+            {!showCreateCol ? (
+              <button
+                onClick={() => { setShowCreateCol(true); setNewColName(''); setNewColEmoji('🍽️') }}
+                className="mt-3 flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-dashed border-[#E8611A] text-left"
+              >
+                <div className="w-8 h-8 rounded-full bg-[#FEF0E8] flex items-center justify-center shrink-0">
+                  <Plus size={15} className="text-[#E8611A]" />
+                </div>
+                <span className="text-sm font-semibold text-[#E8611A]">Create new collection</span>
+              </button>
+            ) : (
+              <div className="mt-3 border border-[#EDE8E0] rounded-xl p-4">
+                <p className="text-xs font-semibold text-[#9B9490] mb-2">Pick an emoji</p>
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 mb-3">
+                  {['🍽️','⚡','🎉','❤️','🌶️','🥗','🍛','🫕','💪','🌙','☀️','🧑‍🍳','🥘','🍜','👶'].map(e => (
+                    <button key={e} onClick={() => setNewColEmoji(e)}
+                      className={`shrink-0 w-9 h-9 rounded-xl text-lg flex items-center justify-center ${newColEmoji === e ? 'ring-2 ring-[#E8611A] bg-[#FEF0E8]' : 'bg-[#F5F0EA]'}`}>
+                      {e}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  autoFocus
+                  type="text"
+                  value={newColName}
+                  onChange={e => setNewColName(e.target.value)}
+                  placeholder="Collection name…"
+                  className="w-full border border-[#EDE8E0] rounded-xl px-3 py-2.5 text-sm text-[#1A2E1A] outline-none focus:border-[#E8611A] mb-3"
+                />
+                <div className="flex gap-2">
+                  <button onClick={() => setShowCreateCol(false)}
+                    className="flex-1 border border-[#EDE8E0] rounded-xl py-2.5 text-sm text-[#9B9490] font-semibold">
+                    Cancel
+                  </button>
+                  <button
+                    disabled={!newColName.trim() || newColLoading}
+                    onClick={async () => {
+                      setNewColLoading(true)
+                      try {
+                        const col = await createCollection(newColName.trim(), newColEmoji, session.access_token)
+                        const newCol = { ...col, recipeCount: 0 }
+                        setCollections(prev => [newCol, ...prev])
+                        setShowCreateCol(false)
+                        // Auto-add this recipe to the new collection if we have userRecipeId
+                        const uid = recipe.userRecipeId || userRecipeId
+                        if (uid) {
+                          await addToCollection(col.id, uid, session.access_token).catch(() => {})
+                          setColMemberships(prev => new Set([...prev, col.id]))
+                        }
+                      } catch (err) {
+                        console.error('create collection failed:', err)
+                      } finally {
+                        setNewColLoading(false)
+                      }
+                    }}
+                    className="flex-1 bg-[#E8611A] rounded-xl py-2.5 text-sm text-white font-bold flex items-center justify-center gap-1 disabled:opacity-40"
+                  >
+                    {newColLoading && <Loader2 size={13} className="animate-spin" />}
+                    Create
+                  </button>
+                </div>
               </div>
-              <span className="text-sm font-semibold text-[#E8611A]">Create new collection</span>
-            </button>
+            )}
           </div>
         </>
       )}

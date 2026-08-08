@@ -19,7 +19,19 @@ export async function saveRecipe(recipeId, token) {
     },
     body: JSON.stringify({ recipeId })
   })
-  if (!res.ok) throw await res.json()
+  // 409 = already saved — treat as success, fetch the existing entry
+  if (res.status === 409) {
+    const saved = await getSavedRecipes(token)
+    const list = Array.isArray(saved) ? saved : []
+    const existing = list.find(r => r.recipeId === recipeId)
+    return existing || { userRecipeId: null }
+  }
+  if (!res.ok) {
+    const body = await res.text()
+    let parsed
+    try { parsed = JSON.parse(body) } catch { parsed = { message: body || `HTTP ${res.status}` } }
+    throw parsed
+  }
   return res.json()
 }
 

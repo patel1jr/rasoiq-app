@@ -19,7 +19,7 @@ function App() {
   const showNav = !HIDE_NAV.some(p => location.pathname.startsWith(p))
 
   return (
-    <div className="min-h-screen bg-[#FDF6EC] max-w-md mx-auto relative">
+    <div className="min-h-screen bg-[#FDF6EC] max-w-md mx-auto relative overflow-x-hidden">
       <Routes>
         <Route path="/" element={<ExtractPage />} />
         <Route path="/dashboard" element={<HomePage />} />

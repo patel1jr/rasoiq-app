@@ -8,6 +8,8 @@ import ProfilePage from './pages/ProfilePage'
 import SavedRecipes from './pages/SavedRecipes'
 import QuickLog from './pages/QuickLog'
 import History from './pages/History'
+import Privacy from './pages/Privacy'
+import Terms from './pages/Terms'
 import BottomNav from './components/BottomNav'
 
 const HIDE_NAV = ['/recipe', '/cook', '/auth']
@@ -29,6 +31,8 @@ function App() {
         <Route path="/saved" element={<SavedRecipes />} />
         <Route path="/log" element={<QuickLog />} />
         <Route path="/history" element={<History />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
       </Routes>
       {showNav && <BottomNav />}
     </div>

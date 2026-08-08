@@ -37,6 +37,15 @@ export async function getRecipe(id) {
   return res.json()
 }
 
+export async function unsaveRecipe(userRecipeId, token) {
+  const res = await fetch(`${API_URL}/api/user/recipes/${userRecipeId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
 export async function getCollections(token) {
   const res = await fetch(`${API_URL}/api/collections`, {
     headers: { 'Authorization': `Bearer ${token}` }

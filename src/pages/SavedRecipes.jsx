@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, Heart, Loader2, BookOpen, Plus, Check, FolderPlus, Pencil, Trash2 } from 'lucide-react'
 import { useSession } from '../lib/useSession'
-import { getSavedRecipes, getCollections, createCollection, addToCollection, removeFromCollection } from '../lib/api'
+import { getSavedRecipes, getCollections, createCollection, addToCollection, removeFromCollection, unsaveRecipe } from '../lib/api'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 function getYouTubeThumbnail(url) {
@@ -378,10 +378,15 @@ export default function SavedRecipes() {
     navigate(id ? `/recipe/${id}` : '/recipe', { state: { recipe } })
   }
 
-  function confirmUnsave() {
-    const id = unsaveTarget.id || unsaveTarget.recipeId || unsaveTarget.userRecipeId
-    setRecipes(prev => prev.filter(r => (r.id || r.recipeId || r.userRecipeId) !== id))
+  async function confirmUnsave() {
+    const userRecipeId = unsaveTarget.userRecipeId || unsaveTarget.id
+    // Optimistic remove
+    setRecipes(prev => prev.filter(r => (r.userRecipeId || r.id) !== userRecipeId))
     setUnsaveTarget(null)
+    if (userRecipeId && session) {
+      try { await unsaveRecipe(userRecipeId, session.access_token) }
+      catch { /* already removed from UI; silently ignore */ }
+    }
   }
 
   function handleCollectionCreated(col) {

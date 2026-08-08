@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Smartphone, Check, Loader2, AlertCircle, UtensilsCrossed, X, Lock, Clock, ChefHat, ChevronRight } from 'lucide-react'
 import { extractRecipe, getSavedRecipes } from '../lib/api'
 import { useSession } from '../lib/useSession'
-import { getLocalExtractions, addLocalExtraction, isAtLimit, FREE_LIMIT } from '../lib/localExtractions'
+import { getLocalExtractions, getRecentExtractions, addLocalExtraction, isAtLimit, FREE_LIMIT } from '../lib/localExtractions'
 
 const STAGES = [
   { id: 'fetch', label: 'Fetching video transcript' },
@@ -31,6 +31,7 @@ export default function ExtractPage() {
   const [recentFromApi, setRecentFromApi] = useState(null) // null = not fetched yet
   const localExtractions = getLocalExtractions()
   const localCount = localExtractions.length
+  const recentLocalExtractions = getRecentExtractions(7)
 
   useEffect(() => {
     if (session) {
@@ -42,10 +43,10 @@ export default function ExtractPage() {
     }
   }, [session])
 
-  // For signed-in users: use API data. For guests: use localStorage.
+  // Signed-in: use API (saved recipes). Guests: last 7 days from localStorage.
   const recentItems = session
     ? (recentFromApi || [])
-    : localExtractions
+    : recentLocalExtractions
 
   // Avatar initials for signed-in user
   const avatarInitial = session

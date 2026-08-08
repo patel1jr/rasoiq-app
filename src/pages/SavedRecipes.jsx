@@ -232,7 +232,7 @@ function UnsaveSheet({ recipe, onConfirm, onCancel }) {
 }
 
 // ─── Recipe card (with long-press) ─────────────────────────────────────────
-function RecipeCard({ recipe, onTap, onLongPress }) {
+function RecipeCard({ recipe, onTap, onLongPress, onUnsave }) {
   const [thumbError, setThumbError] = useState(false)
   const thumbnail = getYouTubeThumbnail(recipe.source?.url || recipe.sourceUrl)
   const accent = accentColor(recipe.cuisineRegion || recipe.cuisine)
@@ -306,7 +306,14 @@ function RecipeCard({ recipe, onTap, onLongPress }) {
           </div>
         )}
         <div className="flex items-center justify-end mt-2">
-          <Heart size={15} className="text-[#E8611A] fill-[#E8611A]" />
+          <button
+            onClick={e => { e.stopPropagation(); onUnsave(recipe) }}
+            onMouseDown={e => e.stopPropagation()}
+            onTouchStart={e => e.stopPropagation()}
+            className="p-1 -m-1"
+          >
+            <Heart size={15} className="text-[#E8611A] fill-[#E8611A]" />
+          </button>
         </div>
       </div>
     </button>
@@ -566,6 +573,7 @@ export default function SavedRecipes() {
                 recipe={r}
                 onTap={openRecipe}
                 onLongPress={r => setActionTarget(r)}
+                onUnsave={r => setUnsaveTarget(r)}
               />
             ))}
           </div>

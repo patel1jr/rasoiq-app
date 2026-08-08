@@ -3,7 +3,7 @@ import { ArrowLeft, Heart, Play, Clock, Zap, Users, BarChart2, X, ChefHat, Info,
 import { useState, useEffect } from 'react'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, FREE_LIMIT } from '../lib/localExtractions'
-import { getRecipe, getCollections, createCollection, addToCollection, removeFromCollection } from '../lib/api'
+import { getRecipe, saveRecipe, unsaveRecipe, getCollections, createCollection, addToCollection, removeFromCollection } from '../lib/api'
 
 function formatTime(mins) {
   if (!mins) return '—'
@@ -28,7 +28,9 @@ export default function RecipePage() {
   const [loadingRecipe, setLoadingRecipe] = useState(!state?.recipe && !!id)
   const [fetchError, setFetchError] = useState(null)
   const [activeTab, setActiveTab] = useState('ingredients')
-  const [saved, setSaved] = useState(false)
+  const [saved, setSaved] = useState(!!(state?.recipe?.userRecipeId))
+  const [userRecipeId, setUserRecipeId] = useState(state?.recipe?.userRecipeId || null)
+  const [saveLoading, setSaveLoading] = useState(false)
   const [servings, setServings] = useState(null)
   const [techniqueSheet, setTechniqueSheet] = useState(null)
   const [thumbError, setThumbError] = useState(false)
@@ -311,12 +313,32 @@ export default function RecipePage() {
           </button>
           <div className="flex flex-col items-center gap-1">
             <button
-              onClick={() => session ? setSaved(s => !s) : setAuthSheet('save')}
+              disabled={saveLoading}
+              onClick={async () => {
+                if (!session) { setAuthSheet('save'); return }
+                setSaveLoading(true)
+                try {
+                  if (saved && userRecipeId) {
+                    await unsaveRecipe(userRecipeId, session.access_token)
+                    setSaved(false)
+                    setUserRecipeId(null)
+                  } else {
+                    const recipeId = recipe.id || recipe.recipeId
+                    const result = await saveRecipe(recipeId, session.access_token)
+                    setSaved(true)
+                    setUserRecipeId(result.userRecipeId)
+                  }
+                } catch { /* silently ignore duplicate save or network error */ }
+                finally { setSaveLoading(false) }
+              }}
               className={`w-14 h-14 rounded-2xl flex items-center justify-center border transition-colors ${
                 saved && session ? 'bg-[#E8611A] border-[#E8611A]' : 'bg-white border-[#EDE8E0]'
               }`}
             >
-              <Heart size={20} className={saved && session ? 'text-white fill-white' : 'text-[#9B9490]'} />
+              {saveLoading
+                ? <Loader2 size={18} className="animate-spin text-[#9B9490]" />
+                : <Heart size={20} className={saved && session ? 'text-white fill-white' : 'text-[#9B9490]'} />
+              }
             </button>
             {saved && session && (
               <button

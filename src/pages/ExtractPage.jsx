@@ -2,6 +2,15 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Smartphone, Check, Loader2, AlertCircle, UtensilsCrossed, X, Lock, Clock, ChefHat, ChevronRight } from 'lucide-react'
 import { extractRecipe, getSavedRecipes } from '../lib/api'
+
+function relativeDate(iso) {
+  if (!iso) return ''
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  if (diff === 0) return 'Today'
+  if (diff === 1) return 'Yesterday'
+  if (diff < 7) return `${diff} days ago`
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+}
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, getRecentExtractions, addLocalExtraction, isAtLimit, FREE_LIMIT } from '../lib/localExtractions'
 
@@ -28,25 +37,24 @@ export default function ExtractPage() {
   const inputRef = useRef(null)
   const session = useSession()
 
-  const [recentFromApi, setRecentFromApi] = useState(null) // null = not fetched yet
+  const [recentFromApi, setRecentFromApi] = useState(null) // null = not yet fetched
   const localExtractions = getLocalExtractions()
   const localCount = localExtractions.length
-  const recentLocalExtractions = getRecentExtractions(7)
 
   useEffect(() => {
     if (session) {
       getSavedRecipes(session.access_token)
         .then(data => setRecentFromApi(Array.isArray(data) ? data : data?.recipes || []))
         .catch(() => setRecentFromApi([]))
-    } else {
+    } else if (session === null) {
       setRecentFromApi(null)
     }
   }, [session])
 
-  // Signed-in: use API (saved recipes). Guests: last 7 days from localStorage.
+  // Signed-in: API saved recipes. Guests: all localStorage entries (no date filter — show everything stored).
   const recentItems = session
     ? (recentFromApi || [])
-    : recentLocalExtractions
+    : localExtractions
 
   // Avatar initials for signed-in user
   const avatarInitial = session
@@ -260,29 +268,28 @@ export default function ExtractPage() {
           <div className="mt-7 pb-8">
             <p className="text-xs font-bold text-[#9B9490] uppercase tracking-wider mb-3">Recent</p>
             <div className="flex flex-col gap-2">
-              {recentItems.slice(0, 10).map((item, i) => {
-                const id = item.recipeId || item.userRecipeId
-                const title = item.title
+              {recentItems.slice(0, session ? 5 : 3).map((item, i) => {
+                const recipeId = item.recipeId || item.recipe?.id || item.recipe?.recipeId
+                const channelName = item.channelName || item.recipe?.source?.channelName || item.source?.channelName
                 const date = item.savedAt || item.extractedAt
                 return (
                   <button
-                    key={id || i}
-                    onClick={() => {
-                      const recipeId = item.recipeId || (item.recipe?.id) || (item.recipe?.recipeId)
-                      // Always pass item as state so userRecipeId is available in RecipePage
+                    key={recipeId || i}
+                    onClick={() =>
                       navigate(recipeId ? `/recipe/${recipeId}` : '/recipe', {
                         state: { recipe: item.recipe || item }
                       })
-                    }}
+                    }
                     className="flex items-center gap-3 bg-white border border-[#EDE8E0] rounded-2xl px-4 py-3.5 text-left"
                   >
                     <div className="w-8 h-8 rounded-xl bg-[#FEF0E8] flex items-center justify-center shrink-0">
                       <Clock size={15} className="text-[#E8611A]" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-[#1A2E1A] truncate">{title}</p>
-                      <p className="text-xs text-[#9B9490]">
-                        {date ? new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}
+                      <p className="text-sm font-semibold text-[#1A2E1A] truncate">{item.title}</p>
+                      <p className="text-xs text-[#9B9490] truncate">
+                        {channelName ? `By ${channelName}` : relativeDate(date)}
+                        {channelName && date ? ` · ${relativeDate(date)}` : ''}
                       </p>
                     </div>
                     <ChevronRight size={16} className="text-[#C0B8AF] shrink-0" />

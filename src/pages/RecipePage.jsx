@@ -3,7 +3,7 @@ import { ArrowLeft, Heart, Play, Clock, Zap, Users, BarChart2, X, ChefHat, Info,
 import { useState, useEffect } from 'react'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, FREE_LIMIT } from '../lib/localExtractions'
-import { getRecipe, saveRecipe, unsaveRecipe, getCollections, createCollection, addToCollection, removeFromCollection } from '../lib/api'
+import { getRecipe, saveRecipe, unsaveRecipe, getSavedRecipes, getCollections, createCollection, addToCollection, removeFromCollection } from '../lib/api'
 
 function formatTime(mins) {
   if (!mins) return '—'
@@ -28,15 +28,8 @@ export default function RecipePage() {
   const [loadingRecipe, setLoadingRecipe] = useState(!state?.recipe && !!id)
   const [fetchError, setFetchError] = useState(null)
   const [activeTab, setActiveTab] = useState('ingredients')
-  const [saved, setSaved] = useState(!!(state?.recipe?.userRecipeId))
-  const [userRecipeId, setUserRecipeId] = useState(state?.recipe?.userRecipeId || null)
-  // Sync saved/userRecipeId when recipe loads (partial state → full fetch merges userRecipeId)
-  useEffect(() => {
-    if (recipe?.userRecipeId && !userRecipeId) {
-      setSaved(true)
-      setUserRecipeId(recipe.userRecipeId)
-    }
-  }, [recipe])
+  const [saved, setSaved] = useState(false)
+  const [userRecipeId, setUserRecipeId] = useState(null)
   const [saveLoading, setSaveLoading] = useState(false)
   const [servings, setServings] = useState(null)
   const [techniqueSheet, setTechniqueSheet] = useState(null)
@@ -53,6 +46,7 @@ export default function RecipePage() {
   const [colBusy, setColBusy] = useState(null)
   const [colMemberships, setColMemberships] = useState(new Set())
   const [saveError, setSaveError] = useState(null)
+  const [saveToast, setSaveToast] = useState(null) // 'saved' | 'unsaved'
   const session = useSession()
   const localCount = getLocalExtractions().length
 
@@ -79,6 +73,23 @@ export default function RecipePage() {
       .catch(() => setFetchError('Could not load recipe.'))
       .finally(() => setLoadingRecipe(false))
   }, [id])
+
+  // Check if this recipe is already saved — runs when session + recipe ID are both known
+  useEffect(() => {
+    if (!session || session === undefined) return
+    const rid = recipe?.id || recipe?.recipeId || id
+    if (!rid) return
+    getSavedRecipes(session.access_token)
+      .then(data => {
+        const list = Array.isArray(data) ? data : []
+        const match = list.find(r => r.recipeId === rid)
+        if (match) {
+          setSaved(true)
+          setUserRecipeId(match.userRecipeId)
+        }
+      })
+      .catch(() => {})
+  }, [session, recipe?.id, recipe?.recipeId, id])
 
   useEffect(() => {
     function onKey(e) {
@@ -344,12 +355,16 @@ export default function RecipePage() {
                     await unsaveRecipe(userRecipeId, session.access_token)
                     setSaved(false)
                     setUserRecipeId(null)
+                    setSaveToast('unsaved')
+                    setTimeout(() => setSaveToast(null), 2000)
                   } else {
                     const recipeId = recipe.id || recipe.recipeId || id
                     if (!recipeId) { setSaveError('Cannot save — recipe ID missing.'); setSaveLoading(false); return }
                     const result = await saveRecipe(recipeId, session.access_token)
                     setSaved(true)
                     setUserRecipeId(result.userRecipeId)
+                    setSaveToast('saved')
+                    setTimeout(() => setSaveToast(null), 2000)
                   }
                 } catch (err) {
                   console.error('save/unsave failed:', err)
@@ -367,10 +382,15 @@ export default function RecipePage() {
                 : <Heart size={20} className={saved && session ? 'text-white fill-white' : 'text-[#9B9490]'} />
               }
             </button>
-            {saveError && (
+            {saveToast && (
+              <p className={`text-[9px] font-semibold text-center whitespace-nowrap ${saveToast === 'saved' ? 'text-[#2D7A5A]' : 'text-[#9B9490]'}`}>
+                {saveToast === 'saved' ? 'Saved ✓' : 'Removed'}
+              </p>
+            )}
+            {saveError && !saveToast && (
               <p className="text-[9px] text-red-500 text-center max-w-[60px] leading-tight">{saveError}</p>
             )}
-            {saved && session && !saveError && (
+            {saved && session && !saveError && !saveToast && (
               <button
                 onClick={async () => {
                   const cols = await getCollections(session.access_token).catch(() => [])

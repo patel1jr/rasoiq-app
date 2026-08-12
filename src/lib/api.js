@@ -108,6 +108,51 @@ export async function getCollectionRecipes(collectionId, token) {
   return res.json()
 }
 
+export async function getWeekMealPlan(startDate, endDate, token) {
+  const res = await fetch(`${API_URL}/api/meal-plan?startDate=${startDate}&endDate=${endDate}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
+export async function addToMealPlan(data, token) {
+  const res = await fetch(`${API_URL}/api/meal-plan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(data)
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
+export async function removeFromMealPlan(id, token) {
+  const res = await fetch(`${API_URL}/api/meal-plan/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
+export async function getGroceryList(startDate, endDate, token) {
+  const res = await fetch(`${API_URL}/api/meal-plan/grocery-list?startDate=${startDate}&endDate=${endDate}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
+export async function checkGroceryItem(itemKey, checked, token) {
+  const res = await fetch(`${API_URL}/api/meal-plan/grocery-list/check`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ itemKey, checked })
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
 export async function logMeal(data, token) {
   const res = await fetch(`${API_URL}/api/meal-log`, {
     method: 'POST',

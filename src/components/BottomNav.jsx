@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Bookmark, Plus, User } from 'lucide-react'
+import { Home, Compass, Bookmark, CalendarDays, User } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { path: '/', icon: Home, label: 'Home' },
-  { path: '/saved', icon: Bookmark, label: 'Saved' },
-  { path: '/log', icon: Plus, label: 'Log' },
-  { path: '/profile', icon: User, label: 'Profile' },
+  { path: '/',         icon: Home,         label: 'Home'     },
+  { path: '/discover', icon: Compass,      label: 'Discover' },
+  { path: '/saved',    icon: Bookmark,     label: 'Saved'    },
+  { path: '/log',      icon: CalendarDays, label: 'Log'      },
+  { path: '/profile',  icon: User,         label: 'Profile'  },
 ]
 
 export default function BottomNav() {

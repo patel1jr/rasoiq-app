@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
-import HomePage from './pages/HomePage'
+import Home from './pages/Home'
+import Discover from './pages/Discover'
 import ExtractPage from './pages/ExtractPage'
 import RecipePage from './pages/RecipePage'
 import CookMode from './pages/CookMode'
@@ -10,9 +11,10 @@ import QuickLog from './pages/QuickLog'
 import History from './pages/History'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
+import GroceryList from './pages/GroceryList'
 import BottomNav from './components/BottomNav'
 
-const HIDE_NAV = ['/recipe', '/cook', '/auth', '/log']
+const HIDE_NAV = ['/recipe', '/cook', '/auth', '/log', '/grocery']
 
 function App() {
   const location = useLocation()
@@ -21,8 +23,8 @@ function App() {
   return (
     <div className="min-h-screen bg-[#FDF6EC] max-w-md mx-auto relative overflow-x-hidden">
       <Routes>
-        <Route path="/" element={<ExtractPage />} />
-        <Route path="/dashboard" element={<HomePage />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/discover" element={<Discover />} />
         <Route path="/extract" element={<ExtractPage />} />
         <Route path="/recipe/:id" element={<RecipePage />} />
         <Route path="/recipe" element={<RecipePage />} />
@@ -32,6 +34,7 @@ function App() {
         <Route path="/saved" element={<SavedRecipes />} />
         <Route path="/log" element={<QuickLog />} />
         <Route path="/history" element={<History />} />
+        <Route path="/grocery" element={<GroceryList />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
       </Routes>

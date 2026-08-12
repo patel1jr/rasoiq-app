@@ -343,7 +343,7 @@ export default function SavedRecipes() {
 
   const [recipes, setRecipes]       = useState([])
   const [collections, setCollections] = useState([])
-  const [loading, setLoading]       = useState(true)
+  const [loading, setLoading]       = useState(false)
   const [error, setError]           = useState(null)
   const [activeCol, setActiveCol]   = useState(null) // null = All
   const [searchOpen, setSearchOpen] = useState(false)
@@ -357,17 +357,32 @@ export default function SavedRecipes() {
 
   function loadAll(token) {
     setLoading(true)
-    Promise.all([
-      getSavedRecipes(token).catch(() => []),
-      getCollections(token).catch(() => []),
+    setError(null)
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 15000)
+    )
+    Promise.race([
+      Promise.all([
+        getSavedRecipes(token).catch(() => []),
+        getCollections(token).catch(() => []),
+      ]),
+      timeout,
     ]).then(([r, c]) => {
-      setRecipes(Array.isArray(r) ? r : r.recipes || [])
+      setRecipes(Array.isArray(r) ? r : r?.recipes || [])
       setCollections(Array.isArray(c) ? c : [])
-    }).catch(() => setError('Could not load your recipes.')).finally(() => setLoading(false))
+    }).catch(() => {
+      setError('Could not load your recipes. Pull to refresh.')
+    }).finally(() => setLoading(false))
   }
 
   useEffect(() => {
-    if (session) loadAll(session.access_token)
+    if (session) {
+      loadAll(session.access_token)
+    } else if (session === undefined) {
+      // Still loading auth — show skeleton briefly
+      setLoading(true)
+    }
+    // session === null handled by guest wall below
   }, [session])
 
   const visibleRecipes = useMemo(() => {

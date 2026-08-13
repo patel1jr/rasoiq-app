@@ -86,6 +86,7 @@ export default function RecipePage() {
         if (match) {
           setSaved(true)
           setUserRecipeId(match.userRecipeId)
+          setColMemberships(new Set((match.collections || []).map(c => c.id)))
         }
       })
       .catch(() => {})
@@ -395,7 +396,6 @@ export default function RecipePage() {
                 onClick={async () => {
                   const cols = await getCollections(session.access_token).catch(() => [])
                   setCollections(Array.isArray(cols) ? cols : [])
-                  if (recipe.userRecipeId) setColMemberships(new Set((recipe.collections || []).map(c => c.id)))
                   setAddColSheet(true)
                 }}
                 className="text-[10px] text-[#E8611A] font-semibold whitespace-nowrap"
@@ -423,7 +423,6 @@ export default function RecipePage() {
                     key={col.id}
                     onClick={async () => {
                       if (colBusy) return
-                      const userRecipeId = recipe.userRecipeId
                       if (!userRecipeId) return
                       setColBusy(col.id)
                       try {

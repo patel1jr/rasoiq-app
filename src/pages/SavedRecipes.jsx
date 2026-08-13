@@ -1,94 +1,198 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, X, Heart, Loader2, BookOpen, Plus, Check, FolderPlus, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, Search, MoreHorizontal, Loader2, X, ChevronRight } from 'lucide-react'
 import { useSession } from '../lib/useSession'
-import { getSavedRecipes, getCollections, createCollection, addToCollection, removeFromCollection, unsaveRecipe } from '../lib/api'
+import {
+  getSavedRecipes, getCollections, createCollection,
+  addToCollection, removeFromCollection, unsaveRecipe,
+} from '../lib/api'
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
-function getYouTubeThumbnail(url) {
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+function getVideoId(url) {
   if (!url) return null
-  const match = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
-  if (!match) return null
-  return `https://img.youtube.com/vi/${match[1]}/maxresdefault.jpg`
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\s?]+)/)
+  return m ? m[1] : null
 }
 
-const CUISINE_ACCENT = {
-  punjabi:        '#E8611A',
-  'south indian': '#2D7A5A',
-  gujarati:       '#F5A623',
-  bengali:        '#F5A623',
-  rajasthani:     '#E8611A',
-}
-function accentColor(c) {
-  if (!c) return '#C0B8AF'
-  return CUISINE_ACCENT[c.toLowerCase()] || '#C0B8AF'
+function thumbUrl(url) {
+  const id = getVideoId(url)
+  return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null
 }
 
-const EMOJI_OPTIONS = ['👶','🍽️','⚡','🎉','❤️','🌶️','🥗','🍛','🫕','💪','🌙','☀️','🧑‍🍳','🥘','🍜']
+// 2×2 thumbnail collage for a collection card
+function ThumbnailCollage({ recipes, height = 'h-36', emptyEmoji = '📚' }) {
+  const thumbs = recipes.slice(0, 4).map(r => thumbUrl(r.sourceUrl))
+  const [errored, setErrored] = useState({})
 
-// ─── Create Collection sheet ───────────────────────────────────────────────
-function CreateCollectionSheet({ onClose, onCreated, session }) {
+  const valid = thumbs.filter((t, i) => t && !errored[i])
+
+  if (valid.length === 0) {
+    return (
+      <div className={`${height} flex items-center justify-center`}
+        style={{ background: 'linear-gradient(135deg,#FDF0E4 0%,#F5E6D0 100%)' }}>
+        <span className="text-5xl">{emptyEmoji}</span>
+      </div>
+    )
+  }
+
+  const count = Math.min(valid.length, 4)
+
+  function img(src, idx, extraClass = '') {
+    return (
+      <img key={idx} src={src} alt=""
+        className={`object-cover ${extraClass}`}
+        onError={() => setErrored(p => ({ ...p, [idx]: true }))}
+      />
+    )
+  }
+
+  if (count === 1) return (
+    <div className={`${height} overflow-hidden`}>
+      {img(valid[0], 0, 'w-full h-full')}
+    </div>
+  )
+  if (count === 2) return (
+    <div className={`${height} flex`}>
+      {img(valid[0], 0, 'w-1/2 h-full')}
+      <div className="w-px bg-white" />
+      {img(valid[1], 1, 'w-1/2 h-full')}
+    </div>
+  )
+  if (count === 3) return (
+    <div className={`${height} flex flex-col`}>
+      <div className="flex flex-1">
+        {img(valid[0], 0, 'w-1/2 h-full')}
+        <div className="w-px bg-white" />
+        {img(valid[1], 1, 'w-1/2 h-full')}
+      </div>
+      <div className="h-px bg-white" />
+      {img(valid[2], 2, 'w-full h-1/2')}
+    </div>
+  )
+  // 4
+  return (
+    <div className={`${height} grid grid-cols-2`} style={{ gap: '1px', background: '#fff' }}>
+      {valid.slice(0, 4).map((src, i) => img(src, i, 'w-full h-full'))}
+    </div>
+  )
+}
+
+// ── skeleton ──────────────────────────────────────────────────────────────────
+function Skeleton() {
+  return (
+    <div className="min-h-screen bg-[#FDF6EC] pb-24">
+      <div className="px-4 pt-14 pb-3 flex items-center justify-between">
+        <div className="h-7 w-36 bg-[#1A2E1A]/10 rounded-xl animate-pulse" />
+        <div className="h-9 w-9 bg-[#1A2E1A]/10 rounded-full animate-pulse" />
+      </div>
+      <div className="mx-4 h-11 rounded-full bg-[#1A2E1A]/08 animate-pulse mb-4" />
+      <div className="mx-4 grid grid-cols-2 gap-3">
+        <div className="col-span-2 h-52 rounded-2xl bg-[#1A2E1A]/08 animate-pulse" />
+        {[1,2,3,4].map(i => (
+          <div key={i} className="h-52 rounded-2xl bg-[#1A2E1A]/08 animate-pulse" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── action sheet ──────────────────────────────────────────────────────────────
+function ActionSheet({ recipe, collectionId, collectionName, onClose, onRemoveFromCollection, onUnsave }) {
+  const navigate = useNavigate()
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-50" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-50 bg-white rounded-t-3xl px-5 pt-3 pb-10">
+        <div className="w-10 h-1 bg-[#EDE8E0] rounded-full mx-auto mb-4" />
+        <p className="text-[13px] font-semibold text-[#9B9490] mb-4 truncate">{recipe.title}</p>
+        <div className="flex flex-col gap-1">
+          <button onClick={() => { navigate(`/recipe/${recipe.recipeId}`, { state: { recipe } }); onClose() }}
+            className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-left text-[15px] font-semibold text-[#1A2E1A] hover:bg-[#F5F0EA]">
+            🍳 Start cooking
+          </button>
+          <button onClick={() => { onClose() }}
+            className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-left text-[15px] font-semibold text-[#1A2E1A] hover:bg-[#F5F0EA]">
+            📂 Add to another collection
+          </button>
+          {collectionId && (
+            <button onClick={() => { onRemoveFromCollection(); onClose() }}
+              className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-left text-[15px] font-semibold text-red-500 hover:bg-red-50">
+              Remove from {collectionName}
+            </button>
+          )}
+          <button onClick={() => { onUnsave(); onClose() }}
+            className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-left text-[15px] font-semibold text-red-500 hover:bg-red-50">
+            🗑 Remove from saved
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── create collection sheet ───────────────────────────────────────────────────
+const EMOJI_OPTIONS = ['🍽️','❤️','👶','⚡','🎉','🌶️','🥗','🍛','🫕','💪','🌙','☀️','🐟','🥩','🫓','🌍','🧑‍🍳','🥘']
+
+function CreateCollectionSheet({ onClose, onCreate }) {
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('🍽️')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   async function handleCreate() {
-    if (!name.trim()) return
-    setLoading(true); setError(null)
+    if (!name.trim() || loading) return
+    setLoading(true)
     try {
-      const created = await createCollection(name.trim(), emoji, session.access_token)
-      onCreated(created)
+      const col = await onCreate(name.trim(), emoji)
+      onClose(col)
     } catch (err) {
-      console.error('createCollection failed:', err)
-      const msg = err?.message || err?.detail || err?.title || ''
-      setError(msg || 'Could not create collection.')
+      setError(err?.message || 'Could not create collection.')
+    } finally {
       setLoading(false)
     }
   }
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl z-50 px-6 pt-5 pb-10">
+      <div className="fixed inset-0 bg-black/40 z-50" onClick={() => onClose(null)} />
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-50 bg-white rounded-t-3xl px-6 pt-4 pb-10">
         <div className="w-10 h-1 bg-[#EDE8E0] rounded-full mx-auto mb-5" />
-        <h3 className="font-display text-xl font-bold text-[#1A2E1A] mb-5">New collection</h3>
+        <h2 className="text-xl font-extrabold text-[#1A2E1A] tracking-tight mb-5">New collection</h2>
 
         {/* Emoji picker */}
-        <p className="text-xs font-semibold text-[#9B9490] mb-2">Choose an emoji</p>
-        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar mb-5">
+        <p className="text-xs font-semibold text-[#9B9490] uppercase tracking-wider mb-2">Choose emoji</p>
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-5" style={{ scrollbarWidth: 'none' }}>
           {EMOJI_OPTIONS.map(e => (
-            <button
-              key={e}
-              onClick={() => setEmoji(e)}
-              className={`shrink-0 w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all ${
-                emoji === e ? 'ring-2 ring-[#E8611A] bg-[#FEF0E8]' : 'bg-[#F5F0EA]'
-              }`}
-            >
+            <button key={e} onClick={() => setEmoji(e)}
+              className="shrink-0 w-11 h-11 rounded-xl text-xl flex items-center justify-center transition-all"
+              style={{
+                background: emoji === e ? '#FEF0E8' : '#F5F0EA',
+                border: emoji === e ? '2px solid #E8611A' : '2px solid transparent',
+              }}>
               {e}
             </button>
           ))}
         </div>
 
         {/* Name input */}
-        <p className="text-xs font-semibold text-[#9B9490] mb-2">Collection name</p>
+        <p className="text-xs font-semibold text-[#9B9490] uppercase tracking-wider mb-2">Collection name</p>
         <input
           autoFocus
-          type="text"
           value={name}
           onChange={e => setName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleCreate()}
-          placeholder="e.g. Baby Food, Fine Dining…"
-          className="w-full border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#1A2E1A] placeholder:text-[#C0B8AF] outline-none focus:border-[#E8611A] transition-colors"
+          placeholder="e.g. Baby Food, Quick Weekdays…"
+          className="w-full border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#1A2E1A] outline-none mb-2"
+          style={{ background: '#FAFAF9' }}
         />
-
-        {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+        {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
 
         <button
           onClick={handleCreate}
           disabled={!name.trim() || loading}
-          className="mt-5 w-full bg-[#E8611A] text-white font-bold py-4 rounded-full text-[15px] flex items-center justify-center gap-2 disabled:opacity-40 transition-opacity"
-        >
+          className="mt-3 w-full h-13 rounded-full py-3.5 text-white text-[15px] font-bold flex items-center justify-center gap-2 disabled:opacity-40"
+          style={{ background: '#C2511A', boxShadow: '0 8px 18px -8px rgba(194,81,26,.7)' }}>
           {loading && <Loader2 size={16} className="animate-spin" />}
           Create collection
         </button>
@@ -97,539 +201,400 @@ function CreateCollectionSheet({ onClose, onCreated, session }) {
   )
 }
 
-// ─── Add to Collection sheet ───────────────────────────────────────────────
-function AddToCollectionSheet({ recipe, collections, onClose, onCollectionCreated, session }) {
-  const [busy, setBusy] = useState(null) // collectionId being toggled
-  const [localMemberships, setLocalMemberships] = useState(
-    () => new Set((recipe.collections || []).map(c => c.id))
-  )
-  const [showCreate, setShowCreate] = useState(false)
-
-  async function toggle(col) {
-    if (busy) return
-    setBusy(col.id)
-    const inCol = localMemberships.has(col.id)
-    try {
-      if (inCol) {
-        await removeFromCollection(col.id, recipe.userRecipeId, session.access_token)
-        setLocalMemberships(prev => { const s = new Set(prev); s.delete(col.id); return s })
-      } else {
-        await addToCollection(col.id, recipe.userRecipeId, session.access_token)
-        setLocalMemberships(prev => new Set([...prev, col.id]))
-      }
-    } catch { /* silent — optimistic update already done */ }
-    finally { setBusy(null) }
-  }
-
-  if (showCreate) {
-    return (
-      <CreateCollectionSheet
-        session={session}
-        onClose={() => setShowCreate(false)}
-        onCreated={col => { onCollectionCreated(col); setShowCreate(false) }}
-      />
-    )
-  }
-
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl z-50 px-6 pt-5 pb-10">
-        <div className="w-10 h-1 bg-[#EDE8E0] rounded-full mx-auto mb-5" />
-        <h3 className="font-display text-xl font-bold text-[#1A2E1A] mb-1">Add to collection</h3>
-        <p className="text-sm text-[#9B9490] mb-5 truncate">{recipe.title}</p>
-
-        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
-          {collections.map(col => {
-            const inCol = localMemberships.has(col.id)
-            return (
-              <button
-                key={col.id}
-                onClick={() => toggle(col)}
-                className="flex items-center gap-3 bg-[#F7F3EE] rounded-xl px-4 py-3 text-left transition-colors active:bg-[#F0EBE4]"
-              >
-                <span className="text-xl shrink-0">{col.emoji || '📁'}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[#1A2E1A]">{col.name}</p>
-                  <p className="text-xs text-[#9B9490]">{col.recipeCount} recipe{col.recipeCount !== 1 ? 's' : ''}</p>
-                </div>
-                {busy === col.id
-                  ? <Loader2 size={16} className="animate-spin text-[#9B9490] shrink-0" />
-                  : inCol
-                    ? <div className="w-6 h-6 rounded-full bg-[#E8611A] flex items-center justify-center shrink-0">
-                        <Check size={13} className="text-white" strokeWidth={3} />
-                      </div>
-                    : <div className="w-6 h-6 rounded-full border-2 border-[#EDE8E0] shrink-0" />
-                }
-              </button>
-            )
-          })}
-        </div>
-
-        {/* New collection row */}
-        <button
-          onClick={() => setShowCreate(true)}
-          className="mt-3 flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-dashed border-[#E8611A] text-left"
-        >
-          <div className="w-8 h-8 rounded-full bg-[#FEF0E8] flex items-center justify-center shrink-0">
-            <Plus size={15} className="text-[#E8611A]" />
-          </div>
-          <span className="text-sm font-semibold text-[#E8611A]">Create new collection</span>
-        </button>
-      </div>
-    </>
-  )
-}
-
-// ─── Long-press action sheet ───────────────────────────────────────────────
-function CardActionSheet({ recipe, onAddToCollection, onUnsave, onClose }) {
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl z-50 px-6 pt-5 pb-10">
-        <div className="w-10 h-1 bg-[#EDE8E0] rounded-full mx-auto mb-4" />
-        <p className="text-xs text-[#9B9490] mb-4 truncate">{recipe.title}</p>
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={onAddToCollection}
-            className="flex items-center gap-3 w-full px-4 py-4 rounded-xl bg-[#F7F3EE] text-left"
-          >
-            <FolderPlus size={18} className="text-[#2D7A5A]" />
-            <span className="text-sm font-semibold text-[#1A2E1A]">Add to collection</span>
-          </button>
-          <button
-            onClick={onUnsave}
-            className="flex items-center gap-3 w-full px-4 py-4 rounded-xl bg-[#F7F3EE] text-left"
-          >
-            <Trash2 size={18} className="text-red-500" />
-            <span className="text-sm font-semibold text-red-500">Remove from saved</span>
-          </button>
-          <button
-            onClick={onClose}
-            className="flex items-center justify-center w-full px-4 py-4 rounded-xl bg-[#F0EBE4]"
-          >
-            <span className="text-sm font-semibold text-[#9B9490]">Cancel</span>
-          </button>
-        </div>
-      </div>
-    </>
-  )
-}
-
-// ─── Unsave confirm sheet ──────────────────────────────────────────────────
-function UnsaveSheet({ recipe, onConfirm, onCancel }) {
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onCancel} />
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl z-50 px-6 pt-5 pb-10">
-        <p className="font-display text-lg font-bold text-[#1A2E1A] mb-1">Remove from saved?</p>
-        <p className="text-sm text-[#9B9490] mb-6">"{recipe.title}" will be removed from your saved recipes.</p>
-        <div className="flex flex-col gap-3">
-          <button onClick={onConfirm} className="w-full bg-red-500 text-white font-bold py-4 rounded-2xl text-[15px]">Remove</button>
-          <button onClick={onCancel} className="w-full bg-white border border-[#EDE8E0] text-[#1A2E1A] font-semibold py-4 rounded-2xl text-[15px]">Keep saved</button>
-        </div>
-      </div>
-    </>
-  )
-}
-
-// ─── Recipe card (with long-press) ─────────────────────────────────────────
-function RecipeCard({ recipe, onTap, onLongPress, onUnsave }) {
-  const [thumbError, setThumbError] = useState(false)
-  const thumbnail = getYouTubeThumbnail(recipe.source?.url || recipe.sourceUrl)
-  const accent = accentColor(recipe.cuisineRegion || recipe.cuisine)
+// ── recipe card (inside collection) ──────────────────────────────────────────
+function RecipeCard({ recipe, onLongPress, onClick }) {
   const pressTimer = useRef(null)
+  const thumb = thumbUrl(recipe.sourceUrl)
+  const [thumbErr, setThumbErr] = useState(false)
 
   function startPress() {
-    pressTimer.current = setTimeout(() => onLongPress(recipe), 500)
+    pressTimer.current = setTimeout(() => onLongPress?.(), 500)
   }
   function cancelPress() {
     clearTimeout(pressTimer.current)
   }
 
-  const showThumb = thumbnail && !thumbError
-
   return (
     <button
-      onClick={() => onTap(recipe)}
+      className="w-full text-left bg-white rounded-2xl overflow-hidden shadow-sm"
+      onClick={onClick}
       onMouseDown={startPress}
       onMouseUp={cancelPress}
       onMouseLeave={cancelPress}
       onTouchStart={startPress}
       onTouchEnd={cancelPress}
-      onTouchCancel={cancelPress}
-      className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#EDE8E0] text-left w-full active:scale-[0.98] transition-transform"
     >
-      {/* Accent bar — thicker + full-bleed when no image */}
-      {showThumb ? (
-        <div className="relative w-full h-28 overflow-hidden">
-          <img
-            src={thumbnail}
-            alt={recipe.title}
-            className="w-full h-full object-cover"
-            onError={() => setThumbError(true)}
-          />
-          <div className="absolute bottom-0 left-0 right-0 h-8"
-            style={{ background: 'linear-gradient(to top, rgba(255,255,255,0.7), transparent)' }} />
-        </div>
+      {thumb && !thumbErr ? (
+        <img src={thumb} alt={recipe.title} className="w-full h-28 object-cover"
+          onError={() => setThumbErr(true)} />
       ) : (
-        <div className="h-1.5 w-full" style={{ backgroundColor: accent }} />
+        <div className="w-full h-28 flex items-center justify-center"
+          style={{ background: 'linear-gradient(135deg,#F3E2C4 0%,#EFD9B2 100%)' }}>
+          <span className="text-3xl">🍽️</span>
+        </div>
       )}
-
       <div className="p-3">
-        {/* Cuisine dot + region when no image */}
-        {!showThumb && (recipe.cuisineRegion || recipe.cuisine) && (
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: accent }} />
-            <p className="text-[10px] font-semibold text-[#9B9490] uppercase tracking-wide truncate">
-              {recipe.cuisineRegion || recipe.cuisine}
-            </p>
-          </div>
+        <p className="text-sm font-bold text-[#1A2E1A] leading-snug line-clamp-2">{recipe.title}</p>
+        {recipe.channelName && (
+          <p className="text-xs text-[#9B9490] mt-1 truncate">By {recipe.channelName}</p>
         )}
-        <p
-          className="font-display text-sm font-bold text-[#1A2E1A] leading-snug"
-          style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-        >
-          {recipe.title}
-        </p>
-        {(recipe.source?.channelName || recipe.channelName) && (
-          <p className="text-[11px] text-[#9B9490] mt-0.5 truncate">
-            {recipe.source?.channelName || recipe.channelName}
-          </p>
-        )}
-        {/* Collection badges */}
-        {recipe.collections?.length > 0 && (
-          <div className="flex gap-1 mt-1.5 flex-wrap">
-            {recipe.collections.slice(0, 2).map(c => (
-              <span key={c.id} className="text-[10px] bg-[#F0EBE4] text-[#9B9490] px-2 py-0.5 rounded-full">
-                {c.emoji} {c.name}
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center gap-1.5">
+            {recipe.totalTimeMinutes && (
+              <span className="text-[11px] bg-[#F0EBE4] text-[#6B5B4E] rounded-full px-2 py-0.5">
+                {recipe.totalTimeMinutes < 60 ? `${recipe.totalTimeMinutes}m` : `${Math.floor(recipe.totalTimeMinutes/60)}h`}
               </span>
-            ))}
+            )}
+            {recipe.isVegetarian && <span className="w-3 h-3 rounded-full bg-green-500 shrink-0" title="Vegetarian" />}
           </div>
-        )}
-        <div className="flex items-center justify-end mt-2">
-          <button
-            onClick={e => { e.stopPropagation(); onUnsave(recipe) }}
-            onMouseDown={e => e.stopPropagation()}
-            onTouchStart={e => e.stopPropagation()}
-            className="p-1 -m-1"
-          >
-            <Heart size={15} className="text-[#E8611A] fill-[#E8611A]" />
-          </button>
+          {recipe.cookedCount > 0 && (
+            <span className="text-[11px] font-semibold rounded-full px-2 py-0.5"
+              style={{ background: '#FEF6DC', color: '#B8860B' }}>
+              Cooked {recipe.cookedCount}×
+            </span>
+          )}
         </div>
       </div>
     </button>
   )
 }
 
-// ─── Skeleton card ─────────────────────────────────────────────────────────
-function SkeletonCard() {
+// ── COLLECTION VIEW ───────────────────────────────────────────────────────────
+const FILTERS = ['All', 'Vegetarian', 'Non-veg', 'Under 30 min']
+
+function CollectionView({ collection, allRecipes, onBack, session, onUnsave }) {
+  const navigate = useNavigate()
+  const [filter, setFilter] = useState('All')
+  const [actionSheet, setActionSheet] = useState(null)
+
+  const isAll = collection.id === '__all__'
+  const recipes = isAll
+    ? allRecipes
+    : allRecipes.filter(r => r.collections?.some(c => c.id === collection.id))
+
+  const filtered = recipes.filter(r => {
+    if (filter === 'All') return true
+    if (filter === 'Vegetarian') return r.isVegetarian
+    if (filter === 'Non-veg') return !r.isVegetarian
+    if (filter === 'Under 30 min') return r.totalTimeMinutes && r.totalTimeMinutes < 30
+    return true
+  })
+
+  async function handleRemoveFromCollection(recipe) {
+    if (!session || isAll) return
+    try {
+      await removeFromCollection(collection.id, recipe.userRecipeId, session.access_token)
+    } catch { /* silent */ }
+  }
+
+  async function handleUnsave(recipe) {
+    if (!session) return
+    try {
+      await unsaveRecipe(recipe.userRecipeId, session.access_token)
+      onUnsave(recipe.userRecipeId)
+    } catch { /* silent */ }
+  }
+
   return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#EDE8E0]">
-      <div className="h-1 w-full bg-[#EDE8E0]" />
-      <div className="p-3">
-        <div className="w-full h-24 rounded-xl bg-[#F0EBE4] animate-pulse" />
-        <div className="h-3 bg-[#F0EBE4] rounded-full mt-3 animate-pulse w-4/5" />
-        <div className="h-3 bg-[#F0EBE4] rounded-full mt-1.5 animate-pulse w-2/5" />
+    <div className="flex flex-col min-h-screen bg-[#FDF6EC] pb-24">
+      {/* Header */}
+      <div className="flex items-center px-4 pt-14 pb-3 gap-3">
+        <button onClick={onBack}
+          className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0"
+          style={{ boxShadow: '0 2px 8px -4px rgba(26,46,26,.2)' }}>
+          <ArrowLeft size={18} className="text-[#1A2E1A]" />
+        </button>
+        <div className="flex-1 text-center">
+          <h1 className="text-[17px] font-extrabold text-[#1A2E1A] tracking-tight">
+            {collection.emoji} {collection.name}
+          </h1>
+          <p className="text-[12px] text-[#9B9490] mt-0.5">
+            {recipes.length} recipe{recipes.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        {!isAll && (
+          <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0"
+            style={{ boxShadow: '0 2px 8px -4px rgba(26,46,26,.2)' }}>
+            <MoreHorizontal size={18} className="text-[#1A2E1A]" />
+          </button>
+        )}
+        {isAll && <div className="w-10 shrink-0" />}
       </div>
+
+      {/* Filter chips */}
+      <div className="flex gap-2 px-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        {FILTERS.map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            className="shrink-0 px-4 h-8 rounded-full text-[13px] font-semibold transition-colors"
+            style={{
+              background: filter === f ? '#1A2E1A' : '#fff',
+              color: filter === f ? '#fff' : '#6B5B4E',
+              border: filter === f ? 'none' : '1px solid rgba(26,46,26,.12)',
+            }}>
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {/* Empty state */}
+      {filtered.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center px-8 text-center gap-4">
+          <span className="text-6xl">{collection.emoji || '📂'}</span>
+          <p className="text-lg font-bold text-[#1A2E1A]">
+            {isAll ? 'Your cookbook is empty' : `${collection.name} is empty`}
+          </p>
+          <p className="text-sm text-[#9B9490]">
+            {isAll ? 'Save recipes from YouTube to build your collection'
+                    : 'Go to Discover to add recipes'}
+          </p>
+          <button onClick={() => navigate('/discover')}
+            className="h-12 px-6 rounded-full text-white text-[14px] font-bold"
+            style={{ background: '#C2511A' }}>
+            Find recipes →
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 mx-4 mt-4">
+          {filtered.map(r => (
+            <RecipeCard key={r.userRecipeId || r.recipeId} recipe={r}
+              onClick={() => navigate(`/recipe/${r.recipeId}`, { state: { recipe: r } })}
+              onLongPress={() => setActionSheet(r)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* FAB */}
+      <button onClick={() => navigate('/discover')}
+        className="fixed bottom-24 right-5 w-14 h-14 rounded-full flex items-center justify-center z-30"
+        style={{ background: '#E8611A', boxShadow: '0 8px 20px -6px rgba(232,97,26,.8)' }}>
+        <Plus size={24} className="text-white" />
+      </button>
+
+      {actionSheet && (
+        <ActionSheet
+          recipe={actionSheet}
+          collectionId={isAll ? null : collection.id}
+          collectionName={collection.name}
+          onClose={() => setActionSheet(null)}
+          onRemoveFromCollection={() => handleRemoveFromCollection(actionSheet)}
+          onUnsave={() => handleUnsave(actionSheet)}
+        />
+      )}
     </div>
   )
 }
 
-// ─── Main page ─────────────────────────────────────────────────────────────
+// ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function SavedRecipes() {
   const navigate = useNavigate()
   const session = useSession()
 
-  const [recipes, setRecipes]       = useState([])
+  const [allRecipes, setAllRecipes] = useState([])
   const [collections, setCollections] = useState([])
-  const [loading, setLoading]       = useState(false)
-  const [error, setError]           = useState(null)
-  const [activeCol, setActiveCol]   = useState(null) // null = All
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [query, setQuery]           = useState('')
-
-  // sheets
-  const [createSheet, setCreateSheet]         = useState(false)
-  const [addColTarget, setAddColTarget]       = useState(null) // recipe for add-to-collection
-  const [actionTarget, setActionTarget]       = useState(null) // recipe for long-press menu
-  const [unsaveTarget, setUnsaveTarget]       = useState(null)
-
-  function loadAll(token) {
-    setLoading(true)
-    setError(null)
-    const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('timeout')), 15000)
-    )
-    Promise.race([
-      Promise.all([
-        getSavedRecipes(token).catch(() => []),
-        getCollections(token).catch(() => []),
-      ]),
-      timeout,
-    ]).then(([r, c]) => {
-      setRecipes(Array.isArray(r) ? r : r?.recipes || [])
-      setCollections(Array.isArray(c) ? c : [])
-    }).catch(() => {
-      setError('Could not load your recipes. Pull to refresh.')
-    }).finally(() => setLoading(false))
-  }
+  const [loading, setLoading] = useState(false)
+  const [query, setQuery] = useState('')
+  const [activeCollection, setActiveCollection] = useState(null)
+  const [showCreate, setShowCreate] = useState(false)
 
   useEffect(() => {
-    if (session) {
-      loadAll(session.access_token)
-    } else if (session === undefined) {
-      // Still loading auth — show skeleton briefly
-      setLoading(true)
-    }
-    // session === null handled by guest wall below
+    if (!session) return
+    setLoading(true)
+    Promise.all([
+      getSavedRecipes(session.access_token).catch(() => []),
+      getCollections(session.access_token).catch(() => []),
+    ]).then(([recipes, cols]) => {
+      setAllRecipes(Array.isArray(recipes) ? recipes : [])
+      setCollections(Array.isArray(cols) ? cols : [])
+    }).finally(() => setLoading(false))
   }, [session])
 
-  const visibleRecipes = useMemo(() => {
-    let list = recipes
-    if (query.trim()) {
-      const q = query.toLowerCase()
-      list = list.filter(r => r.title?.toLowerCase().includes(q))
-    }
-    if (activeCol) {
-      list = list.filter(r => r.collections?.some(c => c.id === activeCol.id))
-    }
-    return list
-  }, [recipes, activeCol, query])
-
-  function openRecipe(recipe) {
-    const id = recipe.id || recipe.recipeId
-    navigate(id ? `/recipe/${id}` : '/recipe', { state: { recipe } })
+  function handleUnsave(userRecipeId) {
+    setAllRecipes(prev => prev.filter(r => r.userRecipeId !== userRecipeId))
   }
 
-  async function confirmUnsave() {
-    const userRecipeId = unsaveTarget.userRecipeId || unsaveTarget.id
-    // Optimistic remove
-    setRecipes(prev => prev.filter(r => (r.userRecipeId || r.id) !== userRecipeId))
-    setUnsaveTarget(null)
-    if (userRecipeId && session) {
-      try { await unsaveRecipe(userRecipeId, session.access_token) }
-      catch { /* already removed from UI; silently ignore */ }
-    }
-  }
-
-  function handleCollectionCreated(col) {
+  async function handleCreateCollection(name, emoji) {
+    const col = await createCollection(name, emoji, session.access_token)
     setCollections(prev => [{ ...col, recipeCount: 0 }, ...prev])
-    setActiveCol(col)
-    setCreateSheet(false)
+    return col
   }
 
-  function handleColCreatedFromAddSheet(col) {
-    setCollections(prev => [{ ...col, recipeCount: 0 }, ...prev])
-  }
-
-  // ── Guest wall ──────────────────────────────────────────────────────────
-  if (session === null) {
+  // If inside a collection
+  if (activeCollection) {
     return (
-      <div className="flex flex-col min-h-screen bg-[#FDF6EC] pb-24">
-        <div className="px-5 pt-14 pb-2">
-          <h1 className="font-display text-xl font-bold text-[#1A2E1A]">My Recipes</h1>
-        </div>
-        <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-[#FEF0E8] flex items-center justify-center mb-4">
-            <BookOpen size={28} className="text-[#E8611A]" />
-          </div>
-          <p className="font-display text-lg font-bold text-[#1A2E1A] mb-1">Sign in to see your recipes</p>
-          <p className="text-sm text-[#9B9490] leading-relaxed mb-6">
-            Save unlimited recipes and access them across all your devices.
-          </p>
-          <button onClick={() => navigate('/auth')} className="bg-[#E8611A] text-white font-semibold px-8 py-3 rounded-full text-sm">
-            Sign in
-          </button>
-          <button onClick={() => navigate('/auth')} className="mt-3 text-sm text-[#9B9490] underline underline-offset-2">
-            Create free account
-          </button>
-        </div>
+      <CollectionView
+        collection={activeCollection}
+        allRecipes={allRecipes}
+        onBack={() => setActiveCollection(null)}
+        session={session}
+        onUnsave={handleUnsave}
+      />
+    )
+  }
+
+  // ── Auth state ───────────────────────────────────────────────────────────
+  if (session === undefined || loading) return <Skeleton />
+
+  if (!session) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[#FDF6EC] items-center justify-center px-8 text-center pb-24">
+        <span className="text-6xl mb-5">📚</span>
+        <h2 className="text-xl font-extrabold text-[#1A2E1A] mb-2">Your cookbook is empty</h2>
+        <p className="text-sm text-[#9B9490] mb-6">Sign in to save recipes and build your collection</p>
+        <button onClick={() => navigate('/auth')}
+          className="h-13 px-7 rounded-full text-white font-bold py-3.5"
+          style={{ background: '#C2511A' }}>
+          Sign in
+        </button>
       </div>
     )
   }
+
+  // ── Filtered recipes for search ───────────────────────────────────────────
+  const searchResults = query.trim()
+    ? allRecipes.filter(r =>
+        r.title?.toLowerCase().includes(query.toLowerCase()) ||
+        r.channelName?.toLowerCase().includes(query.toLowerCase())
+      )
+    : null
+
+  // ── Collection grid ───────────────────────────────────────────────────────
+  const recipesByCollection = (colId) =>
+    allRecipes.filter(r => r.collections?.some(c => c.id === colId))
 
   return (
     <div className="flex flex-col min-h-screen bg-[#FDF6EC] pb-24">
 
       {/* Top bar */}
-      <div className="px-5 pt-14 pb-2 flex items-center justify-between gap-3">
-        {searchOpen ? (
-          <div className="flex-1 flex items-center gap-3 bg-white border border-[#EDE8E0] rounded-2xl px-4 py-2.5">
-            <Search size={16} className="text-[#9B9490] shrink-0" />
-            <input
-              autoFocus
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search saved recipes…"
-              className="flex-1 text-sm bg-transparent outline-none text-[#1A2E1A] placeholder:text-[#C0B8AF]"
-            />
-            <button onClick={() => { setSearchOpen(false); setQuery('') }}>
-              <X size={16} className="text-[#9B9490]" />
+      <div className="flex items-center justify-between px-4 pt-14 pb-3">
+        <h1 className="text-2xl font-extrabold text-[#1A2E1A] tracking-tight">My Cookbook</h1>
+        <button onClick={() => setShowCreate(true)}
+          className="w-10 h-10 rounded-full flex items-center justify-center"
+          style={{ background: '#E8611A' }}>
+          <Plus size={20} className="text-white" />
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="mx-4 mb-4">
+        <div className="flex items-center gap-2.5 bg-white rounded-full border border-[#EDE8E0] px-4 h-11"
+          style={{ boxShadow: '0 2px 8px -6px rgba(26,46,26,.15)' }}>
+          <Search size={16} className="text-[#9B9490] shrink-0" />
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search recipes…"
+            className="flex-1 text-sm bg-transparent outline-none text-[#1A2E1A] placeholder:text-[#C0B8AF]"
+          />
+          {query && (
+            <button onClick={() => setQuery('')}>
+              <X size={14} className="text-[#9B9490]" />
             </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+
+        {/* ── Search results ── */}
+        {searchResults !== null ? (
+          <div className="mx-4">
+            <p className="text-xs font-semibold text-[#9B9490] mb-3">
+              {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
+            </p>
+            {searchResults.length === 0 ? (
+              <p className="text-sm text-[#9B9490] text-center py-12">No recipes matching "{query}"</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {searchResults.map(r => (
+                  <RecipeCard key={r.userRecipeId} recipe={r}
+                    onClick={() => navigate(`/recipe/${r.recipeId}`, { state: { recipe: r } })}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         ) : (
-          <>
-            <h1 className="font-display text-xl font-bold text-[#1A2E1A] flex-1">My Recipes</h1>
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="w-9 h-9 rounded-full bg-white border border-[#EDE8E0] flex items-center justify-center shrink-0"
-            >
-              <Search size={17} className="text-[#5A6B5A]" />
-            </button>
-            <button
-              onClick={() => setCreateSheet(true)}
-              className="flex items-center gap-1.5 bg-[#E8611A] text-white text-xs font-bold px-3 py-2 rounded-full shrink-0"
-            >
-              <Plus size={13} />
-              New
-            </button>
-          </>
+
+          /* ── Collections grid ── */
+          <div className="mx-4">
+
+            {/* Empty state — no recipes at all */}
+            {allRecipes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <span className="text-6xl mb-4">📚</span>
+                <h2 className="text-xl font-extrabold text-[#1A2E1A] mb-2">Your cookbook is empty</h2>
+                <p className="text-sm text-[#9B9490] mb-6 max-w-xs">
+                  Save recipes from YouTube to build your collection
+                </p>
+                <button onClick={() => navigate('/discover')}
+                  className="h-12 px-6 rounded-full text-white text-[14px] font-bold"
+                  style={{ background: '#C2511A' }}>
+                  Find recipes
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+
+                {/* All Recipes — full width */}
+                <button
+                  onClick={() => setActiveCollection({ id: '__all__', name: 'All Recipes', emoji: '📚' })}
+                  className="col-span-2 bg-white rounded-2xl overflow-hidden shadow-sm text-left">
+                  <ThumbnailCollage recipes={allRecipes} height="h-36" emptyEmoji="📚" />
+                  <div className="p-3">
+                    <p className="text-[15px] font-bold text-[#1A2E1A]">📚 All Recipes</p>
+                    <p className="text-sm text-[#9B9490] mt-0.5">
+                      All {allRecipes.length} recipe{allRecipes.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </button>
+
+                {/* Collection cards */}
+                {collections.map(col => {
+                  const colRecipes = recipesByCollection(col.id)
+                  return (
+                    <button key={col.id}
+                      onClick={() => setActiveCollection(col)}
+                      className="bg-white rounded-2xl overflow-hidden shadow-sm text-left">
+                      <ThumbnailCollage recipes={colRecipes} height="h-40" emptyEmoji={col.emoji || '📁'} />
+                      <div className="p-3">
+                        <p className="text-sm font-bold text-[#1A2E1A] truncate">
+                          {col.emoji || '📁'} {col.name}
+                        </p>
+                        <p className="text-xs text-[#9B9490] mt-0.5">
+                          {colRecipes.length} recipe{colRecipes.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
+
+                {/* New collection card */}
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="bg-white rounded-2xl h-52 flex flex-col items-center justify-center"
+                  style={{ border: '2px dashed #D5CFC8' }}>
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2"
+                    style={{ background: '#FEF0E8' }}>
+                    <Plus size={22} className="text-[#E8611A]" />
+                  </div>
+                  <p className="text-sm font-semibold text-[#9B9490]">New collection</p>
+                </button>
+
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Collection tabs */}
-      <div className="flex gap-2 overflow-x-auto px-5 mt-3 pb-1 no-scrollbar shrink-0">
-        {/* All Recipes tab */}
-        <button
-          onClick={() => setActiveCol(null)}
-          className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-            !activeCol ? 'bg-[#E8611A] text-white border-[#E8611A]' : 'bg-white text-[#9B9490] border-[#EDE8E0]'
-          }`}
-        >
-          All Recipes
-        </button>
-        {collections.map(col => (
-          <button
-            key={col.id}
-            onClick={() => setActiveCol(col)}
-            className={`shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors whitespace-nowrap ${
-              activeCol?.id === col.id ? 'bg-[#E8611A] text-white border-[#E8611A]' : 'bg-white text-[#9B9490] border-[#EDE8E0]'
-            }`}
-          >
-            {col.emoji && <span>{col.emoji}</span>}
-            {col.name}
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-              activeCol?.id === col.id ? 'bg-white/25 text-white' : 'bg-[#F0EBE4] text-[#9B9490]'
-            }`}>
-              {col.recipeCount}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Collection edit bar */}
-      {activeCol && (
-        <div className="flex items-center justify-between px-5 mt-2">
-          <p className="text-xs text-[#9B9490]">
-            {activeCol.emoji} {activeCol.name}
-          </p>
-          <button
-            onClick={() => {/* future: edit/delete sheet */}}
-            className="flex items-center gap-1 text-xs text-[#9B9490]"
-          >
-            <Pencil size={11} />
-            Edit
-          </button>
-        </div>
-      )}
-
-      {/* Content */}
-      {loading ? (
-        <div className="grid grid-cols-2 gap-3 mx-5 mt-4">
-          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
-        </div>
-      ) : error ? (
-        <div className="flex flex-col items-center justify-center py-20 px-8 text-center gap-3">
-          <p className="text-sm text-[#9B9490]">{error}</p>
-          <button onClick={() => loadAll(session.access_token)} className="text-[#E8611A] font-semibold text-sm">Try again</button>
-        </div>
-      ) : visibleRecipes.length === 0 ? (
-        activeCol ? (
-          /* Collection empty state */
-          <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
-            <p className="text-4xl mb-3">{activeCol.emoji || '📁'}</p>
-            <p className="font-display text-lg font-bold text-[#1A2E1A] mb-1">{activeCol.name}</p>
-            <p className="text-sm text-[#9B9490] mb-1">No recipes in this collection yet</p>
-            <p className="text-xs text-[#9B9490] mb-6">Browse your saved recipes and add them here</p>
-            <button
-              onClick={() => setActiveCol(null)}
-              className="bg-[#E8611A] text-white font-semibold px-6 py-3 rounded-full text-sm"
-            >
-              Browse saved recipes
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-[#FEF0E8] flex items-center justify-center mb-4">
-              <BookOpen size={28} className="text-[#E8611A]" />
-            </div>
-            <p className="font-display text-lg font-bold text-[#1A2E1A] mb-1">
-              {query ? 'No matches' : 'No saved recipes yet'}
-            </p>
-            <p className="text-sm text-[#9B9490] leading-relaxed mb-6">
-              {query ? 'Try a different search term.' : 'Extract recipes from YouTube videos and save them here.'}
-            </p>
-            {!query && (
-              <button onClick={() => navigate('/')} className="bg-[#E8611A] text-white font-semibold px-6 py-3 rounded-full text-sm">
-                Extract a recipe
-              </button>
-            )}
-          </div>
-        )
-      ) : (
-        <>
-          <p className="text-xs text-[#9B9490] font-medium mx-5 mt-4 mb-1">
-            {visibleRecipes.length} recipe{visibleRecipes.length !== 1 ? 's' : ''}
-          </p>
-          <div className="grid grid-cols-2 gap-3 mx-5">
-            {visibleRecipes.map((r, i) => (
-              <RecipeCard
-                key={r.id || r.recipeId || r.userRecipeId || i}
-                recipe={r}
-                onTap={openRecipe}
-                onLongPress={r => setActionTarget(r)}
-                onUnsave={r => setUnsaveTarget(r)}
-              />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Sheets */}
-      {createSheet && (
+      {/* Create collection sheet */}
+      {showCreate && (
         <CreateCollectionSheet
-          session={session}
-          onClose={() => setCreateSheet(false)}
-          onCreated={handleCollectionCreated}
-        />
-      )}
-
-      {addColTarget && (
-        <AddToCollectionSheet
-          recipe={addColTarget}
-          collections={collections}
-          session={session}
-          onClose={() => setAddColTarget(null)}
-          onCollectionCreated={handleColCreatedFromAddSheet}
-        />
-      )}
-
-      {actionTarget && (
-        <CardActionSheet
-          recipe={actionTarget}
-          onAddToCollection={() => { setAddColTarget(actionTarget); setActionTarget(null) }}
-          onUnsave={() => { setUnsaveTarget(actionTarget); setActionTarget(null) }}
-          onClose={() => setActionTarget(null)}
-        />
-      )}
-
-      {unsaveTarget && (
-        <UnsaveSheet
-          recipe={unsaveTarget}
-          onConfirm={confirmUnsave}
-          onCancel={() => setUnsaveTarget(null)}
+          onClose={(col) => {
+            setShowCreate(false)
+            if (col) setActiveCollection({ ...col, recipeCount: 0 })
+          }}
+          onCreate={handleCreateCollection}
         />
       )}
     </div>

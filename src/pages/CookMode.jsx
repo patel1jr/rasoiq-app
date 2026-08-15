@@ -456,6 +456,7 @@ export default function CookMode() {
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-[#EDE8E0] px-6 py-4">
         <div className="flex items-center gap-3">
           <button
+            aria-label="Previous step"
             onClick={goBack}
             disabled={isFirst}
             className={`w-12 h-12 rounded-full border flex items-center justify-center shrink-0 transition-colors ${

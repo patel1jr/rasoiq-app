@@ -374,6 +374,7 @@ export default function RecipePage() {
                   setTimeout(() => setSaveError(null), 3000)
                 } finally { setSaveLoading(false) }
               }}
+              aria-label="Save recipe"
               className={`w-14 h-14 rounded-2xl flex items-center justify-center border transition-colors ${
                 saved && session ? 'bg-[#E8611A] border-[#E8611A]' : 'bg-white border-[#EDE8E0]'
               }`}

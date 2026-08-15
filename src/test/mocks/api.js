@@ -1,0 +1,18 @@
+import { vi } from 'vitest'
+
+export const extractRecipe = vi.fn()
+export const saveRecipe = vi.fn()
+export const unsaveRecipe = vi.fn()
+export const getSavedRecipes = vi.fn()
+export const getRecipe = vi.fn()
+export const getCollections = vi.fn()
+export const createCollection = vi.fn()
+export const addToCollection = vi.fn()
+export const removeFromCollection = vi.fn()
+export const getCollectionRecipes = vi.fn()
+export const logMeal = vi.fn()
+export const getWeekMealPlan = vi.fn()
+export const addToMealPlan = vi.fn()
+export const removeFromMealPlan = vi.fn()
+export const getGroceryList = vi.fn()
+export const checkGroceryItem = vi.fn()

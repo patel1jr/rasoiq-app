@@ -4,12 +4,7 @@ import { SlidersHorizontal, Smartphone, Check, Loader2, AlertCircle, X, Lock, Cl
 import { extractRecipe, getSavedRecipes } from '../lib/api'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, addLocalExtraction, isAtLimit, FREE_LIMIT } from '../lib/localExtractions'
-
-const STAGES = [
-  { id: 'fetch',     label: 'Reading the video transcript…'    },
-  { id: 'extract',   label: 'Identifying ingredients…'         },
-  { id: 'structure', label: 'Detecting cooking techniques…'    },
-]
+import ExtractionLoader from '../components/ExtractionLoader'
 
 const CUISINES = [
   { icon: '🍛', name: 'Punjabi'     },
@@ -197,33 +192,8 @@ export default function Discover() {
             {loading ? 'Extracting…' : 'Extract Recipe'}
           </button>
 
-          {/* Progress stages */}
-          {loading && (
-            <div className="mt-[14px] flex flex-col gap-2.5">
-              {STAGES.map((s, i) => {
-                const done   = i < stage
-                const active = i === stage
-                return (
-                  <div key={s.id} className="flex items-center gap-2.5">
-                    <span className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-extrabold"
-                      style={{
-                        background: done ? '#2D7A5A' : active ? 'transparent' : 'rgba(26,46,26,.08)',
-                        color: done ? '#fff' : undefined,
-                        border: active ? '2.3px solid #E8611A' : 'none',
-                        borderTopColor: active ? 'transparent' : undefined,
-                        animation: active ? 'spin 0.8s linear infinite' : undefined,
-                      }}>
-                      {done ? '✓' : ''}
-                    </span>
-                    <span className="text-[13px] font-semibold"
-                      style={{color: done || active ? '#1A2E1A' : 'rgba(26,46,26,.4)'}}>
-                      {s.label}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          {/* Extraction loader */}
+          {loading && <ExtractionLoader />}
 
           {/* Error */}
           {error && (

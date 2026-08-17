@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { X, Search, Clock, Loader2, ChefHat } from 'lucide-react'
+import { X, Search, Clock, Loader2, ChefHat, Trash2 } from 'lucide-react'
 import { useSession } from '../lib/useSession'
-import { getSavedRecipes, addToMealPlan } from '../lib/api'
+import { getSavedRecipes, addToMealPlan, removeFromMealPlan } from '../lib/api'
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 
@@ -12,7 +12,7 @@ const QUICK_MEALS = {
   Snacks: ['Chaat', 'Pakoda', 'Sandwich', 'Maggi', 'Sprouts'],
 }
 
-export default function MealPlanSheet({ date, defaultMealType, onClose, onAdded }) {
+export default function MealPlanSheet({ date, defaultMealType, onClose, onAdded, onRemoved, existingPlans = [] }) {
   const session = useSession()
   const [tab, setTab] = useState('my') // 'my' | 'quick'
   const [mealType, setMealType] = useState(defaultMealType || 'Dinner')
@@ -21,6 +21,7 @@ export default function MealPlanSheet({ date, defaultMealType, onClose, onAdded 
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(null) // { title, recipeId?, customName? }
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [customText, setCustomText] = useState('')
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function MealPlanSheet({ date, defaultMealType, onClose, onAdded 
   async function handleAdd() {
     if (!session || !selected) return
     setSaving(true)
+    setSaveError(null)
     try {
       const payload = {
         plannedDate: date,
@@ -47,13 +49,31 @@ export default function MealPlanSheet({ date, defaultMealType, onClose, onAdded 
         recipeId: selected.recipeId || null,
         customName: selected.recipeId ? null : selected.title,
       }
-      const entry = await addToMealPlan(payload, session.access_token)
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out. Try again.')), 12000)
+      )
+      const entry = await Promise.race([
+        addToMealPlan(payload, session.access_token),
+        timeout,
+      ])
       onAdded?.({ ...entry, title: selected.title, mealType: mealType.toLowerCase() })
       onClose()
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('addToMealPlan failed:', err)
+      const msg = err?.message || err?.title || err?.detail || 'Could not save. Please try again.'
+      setSaveError(msg)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleRemove(id) {
+    if (!session) return
+    try {
+      await removeFromMealPlan(id, session.access_token)
+      onRemoved?.(id)
+    } catch (err) {
+      console.error('removeFromMealPlan failed:', err)
     }
   }
 
@@ -96,6 +116,30 @@ export default function MealPlanSheet({ date, defaultMealType, onClose, onAdded 
             </button>
           ))}
         </div>
+
+        {/* Already planned */}
+        {existingPlans.length > 0 && (
+          <div className="px-5 pb-3 shrink-0">
+            <p className="text-[11px] font-bold text-[#9B9490] uppercase tracking-wider mb-2">Already planned</p>
+            <div className="flex flex-col gap-2">
+              {existingPlans.map(plan => (
+                <div key={plan.id} className="flex items-center justify-between bg-[#F3E2C4]/60 rounded-2xl px-4 py-3">
+                  <div>
+                    <p className="text-[13px] font-bold text-[#1A2E1A]">{plan.title || plan.customName || 'Unnamed'}</p>
+                    <p className="text-[11px] text-[#9B9490] mt-0.5 capitalize">{plan.mealType}</p>
+                  </div>
+                  <button
+                    onClick={() => handleRemove(plan.id)}
+                    className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-500 hover:bg-red-200 transition-colors"
+                    aria-label="Remove from plan"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-6 px-5 border-b border-[#1A2E1A]/10 shrink-0">
@@ -233,13 +277,16 @@ export default function MealPlanSheet({ date, defaultMealType, onClose, onAdded 
                 <X size={13} className="text-[#1A2E1A]" strokeWidth={2.6} />
               </button>
             </div>
+            {saveError && (
+              <p className="text-[12px] text-red-500 mb-2 text-center">{saveError}</p>
+            )}
             <button
               onClick={handleAdd}
               disabled={saving}
               className="w-full h-12 rounded-3xl bg-[#C2511A] text-white font-bold text-[15px] disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : null}
-              Add to plan
+              {saving ? 'Saving…' : 'Add to plan'}
             </button>
           </div>
         )}

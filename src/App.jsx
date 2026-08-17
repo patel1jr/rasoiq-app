@@ -12,9 +12,10 @@ import History from './pages/History'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import GroceryList from './pages/GroceryList'
+import ResetPassword from './pages/ResetPassword'
 import BottomNav from './components/BottomNav'
 
-const HIDE_NAV = ['/recipe', '/cook', '/auth', '/log', '/grocery']
+const HIDE_NAV = ['/recipe', '/cook', '/auth', '/log', '/grocery', '/reset-password']
 
 function App() {
   const location = useLocation()
@@ -37,6 +38,7 @@ function App() {
         <Route path="/grocery" element={<GroceryList />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
       {showNav && <BottomNav />}
     </div>

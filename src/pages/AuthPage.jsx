@@ -53,6 +53,8 @@ function LoginScreen({ navigate }) {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [resetSent, setResetSent] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
   const [success, setSuccess] = useState(null)
 
   async function handleSubmit(e) {
@@ -183,9 +185,29 @@ function LoginScreen({ navigate }) {
         </div>
 
         {mode === 'login' && (
-          <button type="button" className="text-xs font-semibold text-[#E8611A] text-right">
-            Forgot password?
-          </button>
+          resetSent ? (
+            <p className="text-xs text-[#2D7A5A] bg-[#EAF3EC] border border-[#C5E0CE] rounded-xl px-4 py-3">
+              Password reset email sent — check your inbox.
+            </p>
+          ) : (
+            <button
+              type="button"
+              disabled={resetLoading}
+              onClick={async () => {
+                if (!email) { setError('Enter your email address first.'); return }
+                setResetLoading(true)
+                setError(null)
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                  redirectTo: `${window.location.origin}/reset-password`,
+                })
+                setResetLoading(false)
+                if (error) setError(error.message)
+                else setResetSent(true)
+              }}
+              className="text-xs font-semibold text-[#E8611A] text-right disabled:opacity-50">
+              {resetLoading ? 'Sending…' : 'Forgot password?'}
+            </button>
+          )
         )}
 
         {error && (

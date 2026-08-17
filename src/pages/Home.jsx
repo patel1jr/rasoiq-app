@@ -396,13 +396,20 @@ export default function Home() {
             </div>
           )}
 
-          {hasTodayPlan && (
-            <button onClick={() => navigate('/discover')}
-              className="mt-[14px] w-full h-[46px] rounded-[23px] text-white text-[15px] font-bold"
-              style={{ background: '#C2511A', boxShadow: '0 8px 18px -8px rgba(194,81,26,.7)' }}>
-              Start cooking →
-            </button>
-          )}
+          {hasTodayPlan && (() => {
+            const cookable = todayPlan.find(p => p.recipeId)
+            return (
+              <button
+                onClick={() => cookable
+                  ? navigate(`/cook/${cookable.recipeId}`)
+                  : navigate('/saved')
+                }
+                className="mt-[14px] w-full h-[46px] rounded-[23px] text-white text-[15px] font-bold"
+                style={{ background: '#C2511A', boxShadow: '0 8px 18px -8px rgba(194,81,26,.7)' }}>
+                Start cooking →
+              </button>
+            )
+          })()}
         </div>
 
         {/* Quick picks — only shown when user has saved recipes */}

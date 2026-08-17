@@ -9,71 +9,52 @@ import {
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function getVideoId(url) {
-  if (!url) return null
-  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\s?]+)/)
-  return m ? m[1] : null
+const COLLECTION_GRADIENTS = [
+  ['#E8611A', '#C4510F'], // saffron
+  ['#6BAE75', '#4A8F54'], // sage green
+  ['#F5A623', '#D4891C'], // turmeric
+  ['#E8836A', '#C4614A'], // coral
+  ['#6B8CAE', '#4A6B8F'], // slate blue
+  ['#6BAEB0', '#4A8F91'], // mint
+]
+
+const NAMED_GRADIENTS = {
+  'favourites':   COLLECTION_GRADIENTS[0],
+  'baby food':    COLLECTION_GRADIENTS[1],
+  'quick':        COLLECTION_GRADIENTS[2],
+  'south indian': COLLECTION_GRADIENTS[3],
+  'global':       COLLECTION_GRADIENTS[4],
+  'healthy':      COLLECTION_GRADIENTS[5],
+  'spicy':        COLLECTION_GRADIENTS[4],
+  'weekend':      COLLECTION_GRADIENTS[3],
 }
 
-function thumbUrl(url) {
-  const id = getVideoId(url)
-  return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null
+function getGradient(name = '', index = 0) {
+  const key = Object.keys(NAMED_GRADIENTS).find(k => name.toLowerCase().includes(k))
+  return key ? NAMED_GRADIENTS[key] : COLLECTION_GRADIENTS[index % COLLECTION_GRADIENTS.length]
 }
 
-// 2×2 thumbnail collage for a collection card
-function ThumbnailCollage({ recipes, height = 'h-36', emptyEmoji = '📚' }) {
-  const thumbs = recipes.slice(0, 4).map(r => r.thumbnailUrl || thumbUrl(r.sourceUrl))
-  const [errored, setErrored] = useState({})
-
-  const valid = thumbs.filter(t => t && !errored[t])
-
-  if (valid.length === 0) {
-    return (
-      <div className={`${height} flex items-center justify-center`}
-        style={{ background: 'linear-gradient(135deg,#FDF0E4 0%,#F5E6D0 100%)' }}>
-        <span className="text-5xl">{emptyEmoji}</span>
-      </div>
-    )
-  }
-
-  const count = Math.min(valid.length, 4)
-
-  function img(src, idx, extraClass = '') {
-    return (
-      <img key={src} src={src} alt=""
-        className={`object-cover ${extraClass}`}
-        onError={() => setErrored(p => ({ ...p, [src]: true }))}
-      />
-    )
-  }
-
-  if (count === 1) return (
-    <div className={`${height} overflow-hidden`}>
-      {img(valid[0], 0, 'w-full h-full')}
-    </div>
-  )
-  if (count === 2) return (
-    <div className={`${height} flex`}>
-      {img(valid[0], 0, 'w-1/2 h-full')}
-      <div className="w-px bg-white" />
-      {img(valid[1], 1, 'w-1/2 h-full')}
-    </div>
-  )
-  if (count === 3) return (
-    <div className={`${height} flex flex-col`}>
-      <div className="flex flex-1">
-        {img(valid[0], 0, 'w-1/2 h-full')}
-        <div className="w-px bg-white" />
-        {img(valid[1], 1, 'w-1/2 h-full')}
-      </div>
-      <div className="h-px bg-white" />
-      {img(valid[2], 2, 'w-full h-1/2')}
-    </div>
-  )
-  // 4
+function GradientCard({ emoji, name, height = 'h-40', index = 0, allRecipes = false }) {
+  const [from, to] = allRecipes
+    ? ['#D5C9BA', '#BFB3A4']
+    : getGradient(name, index)
   return (
-    <div className={`${height} grid grid-cols-2`} style={{ gap: '1px', background: '#fff' }}>
-      {valid.slice(0, 4).map((src, i) => img(src, i, 'w-full h-full'))}
+    <div
+      className={`${height} flex items-center justify-center relative overflow-hidden rounded-t-2xl`}
+      style={{ background: `linear-gradient(145deg, ${from} 0%, ${to} 100%)` }}
+    >
+      {/* subtle diagonal texture */}
+      <svg className="absolute inset-0 w-full h-full opacity-[0.07]" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id={`diag-${index}`} width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="12" stroke="white" strokeWidth="3" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill={`url(#diag-${index})`} />
+      </svg>
+      <span className="text-5xl relative" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.18))' }}>
+        {emoji}
+      </span>
     </div>
   )
 }
@@ -558,7 +539,7 @@ export default function SavedRecipes() {
                 <button
                   onClick={() => setActiveCollection({ id: '__all__', name: 'All Recipes', emoji: '📚' })}
                   className="col-span-2 bg-white rounded-2xl overflow-hidden shadow-sm text-left">
-                  <ThumbnailCollage recipes={allRecipes} height="h-36" emptyEmoji="📚" />
+                  <GradientCard emoji="📚" name="All Recipes" height="h-32" index={-1} allRecipes />
                   <div className="p-3">
                     <p className="text-[15px] font-bold text-[#1A2E1A]">📚 All Recipes</p>
                     <p className="text-sm text-[#9B9490] mt-0.5">
@@ -568,13 +549,13 @@ export default function SavedRecipes() {
                 </button>
 
                 {/* Collection cards */}
-                {collections.map(col => {
+                {collections.map((col, i) => {
                   const colRecipes = recipesByCollection(col.id)
                   return (
                     <button key={col.id}
                       onClick={() => setActiveCollection(col)}
                       className="bg-white rounded-2xl overflow-hidden shadow-sm text-left">
-                      <ThumbnailCollage recipes={colRecipes} height="h-40" emptyEmoji={col.emoji || '📁'} />
+                      <GradientCard emoji={col.emoji || '📁'} name={col.name} height="h-40" index={i} />
                       <div className="p-3">
                         <p className="text-sm font-bold text-[#1A2E1A] truncate">
                           {col.emoji || '📁'} {col.name}

@@ -185,7 +185,7 @@ function CreateCollectionSheet({ onClose, onCreate }) {
 // ── recipe card (inside collection) ──────────────────────────────────────────
 function RecipeCard({ recipe, onLongPress, onClick }) {
   const pressTimer = useRef(null)
-  const thumb = thumbUrl(recipe.sourceUrl)
+  const thumb = recipe.thumbnailUrl || null
   const [thumbErr, setThumbErr] = useState(false)
 
   function startPress() {

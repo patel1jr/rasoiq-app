@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { SlidersHorizontal, Smartphone, Check, Loader2, AlertCircle, X, Lock, Clock } from 'lucide-react'
 import { extractRecipe, getSavedRecipes } from '../lib/api'
 import { useSession } from '../lib/useSession'
@@ -41,11 +41,47 @@ export default function Discover() {
   const [urlError, setUrlError]     = useState(null)
   const [showLimitSheet, setShowLimitSheet] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
   const inputRef = useRef(null)
   const session  = useSession()
 
   const [recentFromApi, setRecentFromApi] = useState(null)
+  const [sharedFromYouTube, setSharedFromYouTube] = useState(false)
+  const extractBtnRef = useRef(null)
   const localExtractions = getLocalExtractions()
+
+  // Web Share Target — read URL shared from Android share sheet
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const sharedUrl = params.get('url') || params.get('text') || params.get('title')
+    if (!sharedUrl) return
+
+    const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\s?]+)/
+    if (youtubeRegex.test(sharedUrl)) {
+      const urlMatch = sharedUrl.match(/https?:\/\/[^\s]+/)
+      const extracted = urlMatch ? urlMatch[0] : sharedUrl
+      setUrl(extracted)
+      setUrlError(null)
+      setSharedFromYouTube(true)
+      // Clear query params so a refresh doesn't re-trigger
+      window.history.replaceState({}, '', '/discover')
+      // Auto-focus Extract button after state settles
+      setTimeout(() => extractBtnRef.current?.focus(), 100)
+      // Dismiss banner after 3 s
+      setTimeout(() => setSharedFromYouTube(false), 3000)
+    }
+  }, [])
+
+  // Auto-fill URL from popular recipe tap on Home
+  useEffect(() => {
+    const prefill = location.state?.prefillUrl
+    if (prefill) {
+      setUrl(prefill)
+      setUrlError(null)
+      // Replace the state so a back-navigation doesn't re-trigger
+      window.history.replaceState({}, '')
+    }
+  }, [location.state?.prefillUrl])
 
   useEffect(() => {
     if (session) {
@@ -112,6 +148,18 @@ export default function Discover() {
 
       <main className="flex-1 overflow-y-auto pt-[14px] pb-4">
 
+        {/* Web Share Target banner */}
+        {sharedFromYouTube && (
+          <div className="mx-[22px] mb-3 px-4 py-3 rounded-[14px] flex items-center gap-2.5"
+            style={{background: 'rgba(232,97,26,0.10)', border: '1.5px solid rgba(232,97,26,0.25)'}}>
+            <span className="text-base leading-none">📺</span>
+            <p className="flex-1 text-[13px] font-semibold text-[#C2511A]">YouTube video ready to extract</p>
+            <button onClick={() => setSharedFromYouTube(false)} className="text-[#C2511A]/60 hover:text-[#C2511A]">
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
         {/* Extraction card */}
         <div className="mx-[22px] bg-white rounded-[20px] p-4" style={{opacity: loading ? 0.9 : 1, boxShadow:'0 8px 20px -16px rgba(26,46,26,.35)'}}>
           <p className="text-[11px] font-bold uppercase tracking-[.07em] text-[#E8611A] mb-2.5">Extract from video</p>
@@ -140,6 +188,7 @@ export default function Discover() {
 
           {/* CTA */}
           <button
+            ref={extractBtnRef}
             onClick={handleExtract}
             disabled={loading || !url.trim()}
             className="mt-3 w-full h-[50px] rounded-[25px] text-white text-[15.5px] font-bold flex items-center justify-center gap-2 transition-opacity disabled:opacity-60"

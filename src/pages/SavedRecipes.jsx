@@ -385,6 +385,13 @@ export default function SavedRecipes() {
   const [activeCuisine, setActiveCuisine] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
 
+  // Clear stale data immediately when user switches accounts
+  useEffect(() => {
+    setAllRecipes([])
+    setCollections([])
+    setActiveCollection(null)
+  }, [session?.user?.id])
+
   // Open cuisine-filtered view when navigated from Discover cuisine tiles
   useEffect(() => {
     const cuisine = new URLSearchParams(location.search).get('cuisine')

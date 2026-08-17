@@ -226,6 +226,12 @@ export default function Home() {
   const startDate = weekDates[0]
   const endDate = weekDates[6]
 
+  // Clear stale data immediately when user switches accounts
+  useEffect(() => {
+    setWeekPlan([])
+    setSavedRecipes([])
+  }, [session?.user?.id])
+
   useEffect(() => {
     if (!session) return
     setPlanLoading(true)

@@ -42,6 +42,12 @@ export default function GroceryList() {
 
   const weekLabel = `${new Date(startDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(endDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
 
+  // Clear stale data immediately when user switches accounts
+  useEffect(() => {
+    setGroups([])
+    setMealCount(0)
+  }, [session?.user?.id])
+
   useEffect(() => {
     if (!session) return
     setLoading(true)

@@ -272,6 +272,7 @@ export default function Discover() {
               <div className="mt-3 grid grid-cols-2 gap-2.5">
                 {CUISINES.map(cu => (
                   <button key={cu.name}
+                    onClick={() => navigate('/saved?cuisine=' + encodeURIComponent(cu.name))}
                     className="bg-white rounded-[16px] py-4 px-2 flex flex-col items-center gap-1.5 cursor-pointer"
                     style={{boxShadow:'0 4px 14px -12px rgba(26,46,26,.35)'}}>
                     <span className="text-[24px]">{cu.icon}</span>

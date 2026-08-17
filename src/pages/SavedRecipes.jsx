@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, Plus, Search, MoreHorizontal, Loader2, X, ChevronRight } from 'lucide-react'
 import { useSession } from '../lib/useSession'
 import {
@@ -262,15 +262,19 @@ function RecipeCard({ recipe, onLongPress, onClick }) {
 // ── COLLECTION VIEW ───────────────────────────────────────────────────────────
 const FILTERS = ['All', 'Vegetarian', 'Non-veg', 'Under 30 min']
 
-function CollectionView({ collection, allRecipes, onBack, session, onUnsave }) {
+function CollectionView({ collection, allRecipes, onBack, session, onUnsave, cuisineFilter = null }) {
   const navigate = useNavigate()
   const [filter, setFilter] = useState('All')
   const [actionSheet, setActionSheet] = useState(null)
 
   const isAll = collection.id === '__all__'
-  const recipes = isAll
+  const recipes = (isAll
     ? allRecipes
     : allRecipes.filter(r => r.collections?.some(c => c.id === collection.id))
+  ).filter(r => {
+    if (!cuisineFilter) return true
+    return (r.cuisineRegion || r.cuisine || '').toLowerCase().includes(cuisineFilter.toLowerCase())
+  })
 
   const filtered = recipes.filter(r => {
     if (filter === 'All') return true
@@ -306,10 +310,11 @@ function CollectionView({ collection, allRecipes, onBack, session, onUnsave }) {
         </button>
         <div className="flex-1 text-center">
           <h1 className="text-[17px] font-extrabold text-[#1A2E1A] tracking-tight">
-            {collection.emoji} {collection.name}
+            {cuisineFilter ? cuisineFilter : `${collection.emoji} ${collection.name}`}
           </h1>
           <p className="text-[12px] text-[#9B9490] mt-0.5">
             {recipes.length} recipe{recipes.length !== 1 ? 's' : ''}
+            {cuisineFilter ? ' · tap ← to see all' : ''}
           </p>
         </div>
         {!isAll && (
@@ -388,6 +393,7 @@ function CollectionView({ collection, allRecipes, onBack, session, onUnsave }) {
 // ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function SavedRecipes() {
   const navigate = useNavigate()
+  const location = useLocation()
   const session = useSession()
 
   const [allRecipes, setAllRecipes] = useState([])
@@ -395,7 +401,18 @@ export default function SavedRecipes() {
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState('')
   const [activeCollection, setActiveCollection] = useState(null)
+  const [activeCuisine, setActiveCuisine] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
+
+  // Open cuisine-filtered view when navigated from Discover cuisine tiles
+  useEffect(() => {
+    const cuisine = new URLSearchParams(location.search).get('cuisine')
+    if (cuisine) {
+      setActiveCuisine(cuisine)
+      setActiveCollection({ id: '__all__', name: 'All Recipes', emoji: '📚' })
+      window.history.replaceState({}, '', '/saved')
+    }
+  }, [location.search])
 
   useEffect(() => {
     if (!session) return
@@ -425,9 +442,10 @@ export default function SavedRecipes() {
       <CollectionView
         collection={activeCollection}
         allRecipes={allRecipes}
-        onBack={() => setActiveCollection(null)}
+        onBack={() => { setActiveCollection(null); setActiveCuisine(null) }}
         session={session}
         onUnsave={handleUnsave}
+        cuisineFilter={activeCuisine}
       />
     )
   }

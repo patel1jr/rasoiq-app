@@ -397,7 +397,17 @@ export default function Home() {
           )}
 
           {hasTodayPlan && (() => {
-            const cookable = todayPlan.find(p => p.recipeId)
+            const hour = new Date().getHours()
+            const preferred = hour < 11
+              ? ['breakfast', 'lunch', 'snack', 'dinner']
+              : hour < 15
+              ? ['lunch', 'snack', 'dinner', 'breakfast']
+              : hour < 18
+              ? ['snack', 'dinner', 'lunch', 'breakfast']
+              : ['dinner', 'snack', 'lunch', 'breakfast']
+            const cookable = preferred
+              .map(mt => todayPlan.find(p => p.mealType === mt && p.recipeId))
+              .find(Boolean)
             return (
               <button
                 onClick={() => cookable

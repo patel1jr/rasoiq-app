@@ -31,9 +31,10 @@ function saveChecked(obj) {
 export default function GroceryList() {
   const navigate  = useNavigate()
   const session   = useSession()
-  const [groups, setGroups]   = useState([])
-  const [loading, setLoading] = useState(true)
-  const [checked, setChecked] = useState(getChecked)
+  const [groups, setGroups]     = useState([])
+  const [mealCount, setMealCount] = useState(0)
+  const [loading, setLoading]   = useState(true)
+  const [checked, setChecked]   = useState(getChecked)
 
   const weekDates = getWeekDates()
   const startDate = weekDates[0]
@@ -45,8 +46,11 @@ export default function GroceryList() {
     if (!session) return
     setLoading(true)
     getGroceryList(startDate, endDate, session.access_token)
-      .then(data => setGroups(Array.isArray(data) ? data : []))
-      .catch(() => setGroups([]))
+      .then(data => {
+        setGroups(Array.isArray(data?.categories) ? data.categories : [])
+        setMealCount(data?.mealCount ?? 0)
+      })
+      .catch(() => { setGroups([]); setMealCount(0) })
       .finally(() => setLoading(false))
   }, [session, startDate, endDate])
 
@@ -124,7 +128,7 @@ export default function GroceryList() {
         <div className="bg-white rounded-[18px] p-4 mb-5" style={{boxShadow:'0 6px 18px -16px rgba(26,46,26,.4)'}}>
           <p className="text-[12.5px] font-medium text-[#6B5B4E]">{weekLabel}</p>
           <p className="mt-[5px] text-[14px] font-semibold text-[#1A2E1A]">
-            {groups.reduce((s, g) => s, 0)} planned meals · {totalItems} ingredients
+            {mealCount} planned meal{mealCount !== 1 ? 's' : ''} · {totalItems} ingredients
           </p>
           <div className="mt-3 flex items-center justify-between text-[12.5px] font-semibold text-[#6B5B4E]">
             <span>{checkedCount} of {totalItems} checked</span>

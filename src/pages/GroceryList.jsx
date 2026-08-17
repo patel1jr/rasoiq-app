@@ -31,10 +31,12 @@ function saveChecked(obj) {
 export default function GroceryList() {
   const navigate  = useNavigate()
   const session   = useSession()
-  const [groups, setGroups]     = useState([])
+  const [groups, setGroups]       = useState([])
   const [mealCount, setMealCount] = useState(0)
-  const [loading, setLoading]   = useState(true)
-  const [checked, setChecked]   = useState(getChecked)
+  const [loading, setLoading]     = useState(true)
+  const [checked, setChecked]     = useState(getChecked)
+  const [addingTo, setAddingTo]   = useState(null) // category name
+  const [addText, setAddText]     = useState('')
 
   const weekDates = getWeekDates()
   const startDate = weekDates[0]
@@ -63,6 +65,18 @@ export default function GroceryList() {
   function clearChecked() {
     setChecked({})
     saveChecked({})
+  }
+
+  function confirmAddItem(category) {
+    const name = addText.trim()
+    if (!name) { setAddingTo(null); return }
+    setGroups(prev => prev.map(g =>
+      g.category === category
+        ? { ...g, items: [...g.items, { name, quantity: null, unit: null }] }
+        : g
+    ))
+    setAddText('')
+    setAddingTo(null)
   }
 
   function handleShare() {
@@ -195,9 +209,39 @@ export default function GroceryList() {
                   })}
                 </div>
 
-                <button className="mt-2 px-0.5 py-1 text-[13px] font-bold text-[#E8611A] bg-transparent border-none cursor-pointer">
-                  + Add item
-                </button>
+                {addingTo === group.category ? (
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      autoFocus
+                      value={addText}
+                      onChange={e => setAddText(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') confirmAddItem(group.category)
+                        if (e.key === 'Escape') { setAddingTo(null); setAddText('') }
+                      }}
+                      placeholder="Item name…"
+                      className="flex-1 h-9 px-3 rounded-xl text-[13px] text-[#1A2E1A] outline-none"
+                      style={{ border: '1.5px solid #E8611A', background: '#fff' }}
+                    />
+                    <button
+                      onClick={() => confirmAddItem(group.category)}
+                      className="h-9 px-3 rounded-xl text-[13px] font-bold text-white"
+                      style={{ background: '#E8611A' }}>
+                      Add
+                    </button>
+                    <button
+                      onClick={() => { setAddingTo(null); setAddText('') }}
+                      className="h-9 px-2 text-[13px] font-semibold text-[#9B9490]">
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setAddingTo(group.category); setAddText('') }}
+                    className="mt-2 px-0.5 py-1 text-[13px] font-bold text-[#E8611A] bg-transparent border-none cursor-pointer">
+                    + Add item
+                  </button>
+                )}
               </div>
             )
           })}

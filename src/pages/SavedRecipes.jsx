@@ -25,7 +25,7 @@ function ThumbnailCollage({ recipes, height = 'h-36', emptyEmoji = '📚' }) {
   const thumbs = recipes.slice(0, 4).map(r => thumbUrl(r.sourceUrl))
   const [errored, setErrored] = useState({})
 
-  const valid = thumbs.filter((t, i) => t && !errored[i])
+  const valid = thumbs.filter(t => t && !errored[t])
 
   if (valid.length === 0) {
     return (
@@ -40,9 +40,9 @@ function ThumbnailCollage({ recipes, height = 'h-36', emptyEmoji = '📚' }) {
 
   function img(src, idx, extraClass = '') {
     return (
-      <img key={idx} src={src} alt=""
+      <img key={src} src={src} alt=""
         className={`object-cover ${extraClass}`}
-        onError={() => setErrored(p => ({ ...p, [idx]: true }))}
+        onError={() => setErrored(p => ({ ...p, [src]: true }))}
       />
     )
   }

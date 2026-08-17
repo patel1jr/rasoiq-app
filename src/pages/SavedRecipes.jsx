@@ -22,7 +22,7 @@ function thumbUrl(url) {
 
 // 2×2 thumbnail collage for a collection card
 function ThumbnailCollage({ recipes, height = 'h-36', emptyEmoji = '📚' }) {
-  const thumbs = recipes.slice(0, 4).map(r => thumbUrl(r.sourceUrl))
+  const thumbs = recipes.slice(0, 4).map(r => r.thumbnailUrl || thumbUrl(r.sourceUrl))
   const [errored, setErrored] = useState({})
 
   const valid = thumbs.filter(t => t && !errored[t])

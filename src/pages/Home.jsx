@@ -371,13 +371,20 @@ export default function Home() {
                       {letter}
                     </span>
                     {entry ? (
-                      <>
-                        <span className="flex-1 text-[15px]"
-                          style={{ fontWeight: 700, color: entry.recipeId ? '#C2511A' : '#1A2E1A' }}>
+                      entry.recipeId ? (
+                        <button
+                          onClick={() => navigate(`/recipe/${entry.recipeId}`)}
+                          className="flex-1 flex items-center gap-1 text-left min-w-0">
+                          <span className="flex-1 text-[15px] font-bold truncate" style={{ color: '#C2511A' }}>
+                            {entry.title}
+                          </span>
+                          <ChevronRight size={14} className="text-[#6B5B4E] shrink-0" />
+                        </button>
+                      ) : (
+                        <span className="flex-1 text-[15px] font-bold text-[#1A2E1A] truncate">
                           {entry.title}
                         </span>
-                        {entry.recipeId && <ChevronRight size={14} className="text-[#6B5B4E] shrink-0" />}
-                      </>
+                      )
                     ) : (
                       <>
                         <span className="flex-1 text-[15px] font-medium" style={{ color: 'rgba(26,46,26,.4)' }}>

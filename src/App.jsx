@@ -17,6 +17,11 @@ import BottomNav from './components/BottomNav'
 
 const HIDE_NAV = ['/recipe', '/cook', '/auth', '/log', '/grocery', '/reset-password']
 
+function SentryTest() {
+  throw new Error('Sentry test error - rasoIQ frontend')
+  return null
+}
+
 function App() {
   const location = useLocation()
   const showNav = !HIDE_NAV.some(p => location.pathname.startsWith(p))
@@ -39,6 +44,8 @@ function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        {/* TEMP: remove after confirming Sentry captures the error */}
+        <Route path="/test-sentry" element={<SentryTest />} />
       </Routes>
       {showNav && <BottomNav />}
     </div>

@@ -5,6 +5,16 @@ import { extractRecipe, getSavedRecipes } from '../lib/api'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, addLocalExtraction, isAtLimit, FREE_LIMIT } from '../lib/localExtractions'
 import ExtractionLoader from '../components/ExtractionLoader'
+import FeedbackSheet from '../components/FeedbackSheet'
+
+const EXTRACTION_ERROR_OPTIONS = [
+  'The video should have captions',
+  'Wrong recipe was extracted',
+  'Missing ingredients',
+  'Steps were incomplete',
+  'App felt slow',
+  'Other',
+]
 
 const CUISINES = [
   { icon: '🍛', name: 'Punjabi'     },
@@ -35,6 +45,8 @@ export default function Discover() {
   const [error, setError]           = useState(null)
   const [urlError, setUrlError]     = useState(null)
   const [showLimitSheet, setShowLimitSheet] = useState(false)
+  const [showFeedback, setShowFeedback]     = useState(false)
+  const [failedUrl, setFailedUrl]           = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
   const inputRef = useRef(null)
@@ -125,6 +137,7 @@ export default function Discover() {
           ? "This video doesn't have captions. Try a different video."
           : msg || 'Could not extract recipe from this video.'
       )
+      setFailedUrl(url.trim())
       setLoading(false); setStage(-1)
     }
   }
@@ -197,10 +210,18 @@ export default function Discover() {
 
           {/* Error */}
           {error && (
-            <div className="mt-3 bg-red-50 border border-red-200 rounded-xl px-3.5 py-3 flex gap-2.5 items-start">
-              <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-              <p className="flex-1 text-[12.5px] text-red-600">{error}</p>
-              <button onClick={() => { setError(null); setUrl('') }} className="text-xs text-red-400 font-bold shrink-0">✕</button>
+            <div className="mt-3 bg-red-50 border border-red-200 rounded-xl px-3.5 py-3">
+              <div className="flex gap-2.5 items-start">
+                <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                <p className="flex-1 text-[12.5px] text-red-600">{error}</p>
+                <button onClick={() => { setError(null); setUrl(''); setFailedUrl(null) }} className="text-xs text-red-400 font-bold shrink-0">✕</button>
+              </div>
+              <button
+                onClick={() => setShowFeedback(true)}
+                className="mt-2 ml-[22px] text-[11.5px] font-semibold text-red-400 underline underline-offset-2"
+              >
+                Was this helpful? Tell us what happened →
+              </button>
             </div>
           )}
         </div>
@@ -273,6 +294,16 @@ export default function Discover() {
           </>
         )}
       </main>
+
+      {/* Feedback sheet */}
+      {showFeedback && (
+        <FeedbackSheet
+          type="extraction_error"
+          sourceUrl={failedUrl}
+          options={EXTRACTION_ERROR_OPTIONS}
+          onClose={() => setShowFeedback(false)}
+        />
+      )}
 
       {/* Limit sheet */}
       {showLimitSheet && (

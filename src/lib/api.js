@@ -153,6 +153,16 @@ export async function checkGroceryItem(itemKey, checked, token) {
   return res.json()
 }
 
+export async function submitFeedback(data) {
+  const res = await fetch(`${API_URL}/api/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
 export async function logMeal(data, token) {
   const res = await fetch(`${API_URL}/api/meal-log`, {
     method: 'POST',

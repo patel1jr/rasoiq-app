@@ -1,13 +1,23 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Loader2, ChefHat, BookmarkCheck, Calendar } from 'lucide-react'
+import { LogOut, Loader2, ChefHat, BookmarkCheck, Calendar, MessageSquare } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useSession } from '../lib/useSession'
+import FeedbackSheet from '../components/FeedbackSheet'
+
+const GENERAL_FEEDBACK_OPTIONS = [
+  'Feature request',
+  'Bug report',
+  'Something broke',
+  'Love the app',
+  'Other',
+]
 
 export default function ProfilePage() {
   const navigate = useNavigate()
   const session = useSession()
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading]           = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
 
   if (session === undefined) {
     return (
@@ -71,8 +81,15 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* Sign out */}
-      <div className="mx-5 mt-4">
+      {/* Feedback + Sign out */}
+      <div className="mx-5 mt-4 flex flex-col gap-3">
+        <button
+          onClick={() => setShowFeedback(true)}
+          className="w-full flex items-center justify-center gap-2 bg-white border border-[#EDE8E0] rounded-2xl py-4 text-sm font-semibold text-[#1A2E1A]"
+        >
+          <MessageSquare size={16} className="text-[#E8611A]" />
+          Send feedback
+        </button>
         <button
           onClick={handleSignOut}
           disabled={loading}
@@ -82,11 +99,20 @@ export default function ProfilePage() {
           Sign out
         </button>
       </div>
+
+      {showFeedback && (
+        <FeedbackSheet
+          type="general"
+          options={GENERAL_FEEDBACK_OPTIONS}
+          onClose={() => setShowFeedback(false)}
+        />
+      )}
     </div>
   )
 }
 
 function GuestProfile({ navigate }) {
+  const [showFeedback, setShowFeedback] = useState(false)
   return (
     <div className="flex flex-col min-h-screen bg-[#FDF6EC] pb-24">
       <div className="px-5 pt-14 pb-6">
@@ -137,7 +163,22 @@ function GuestProfile({ navigate }) {
         >
           Create account
         </button>
+        <button
+          onClick={() => setShowFeedback(true)}
+          className="w-full flex items-center justify-center gap-2 bg-white border border-[#EDE8E0] rounded-2xl py-4 text-sm font-semibold text-[#1A2E1A]"
+        >
+          <MessageSquare size={16} className="text-[#E8611A]" />
+          Send feedback
+        </button>
       </div>
+
+      {showFeedback && (
+        <FeedbackSheet
+          type="general"
+          options={GENERAL_FEEDBACK_OPTIONS}
+          onClose={() => setShowFeedback(false)}
+        />
+      )}
     </div>
   )
 }

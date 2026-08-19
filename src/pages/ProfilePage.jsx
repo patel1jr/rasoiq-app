@@ -141,7 +141,7 @@ function GuestProfile({ navigate }) {
             { icon: Calendar, text: 'Plan your weekly meals' },
             { icon: ChefHat, text: 'Get personalised suggestions' },
           ].map(({ icon: Icon, text }) => (
-            <div key={text} className="flex items-center gap-3 bg-white border border-[#EDE8E0] rounded-2xl px-4 py-3.5">
+            <div key={text} className="flex items-center gap-3 bg-white rounded-2xl px-4 py-3.5">
               <Icon size={18} className="text-[#E8611A] shrink-0" />
               <span className="text-sm font-medium text-[#1A2E1A]">{text}</span>
             </div>

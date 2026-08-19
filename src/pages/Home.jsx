@@ -282,9 +282,9 @@ export default function Home() {
     return (
       <div className="flex flex-col min-h-screen bg-[#FDF6EC] pb-24">
         <div className="flex items-center justify-between px-[22px] pt-14 pb-2">
-          <div style={{ font: '400 20px Inter', color: '#1A2E1A' }}>
-            rasoi<span style={{ fontWeight: 800, color: '#E8611A' }}>IQ</span>
-          </div>
+          <span className="font-display text-2xl font-bold text-[#1A2E1A]">
+            raso<span className="text-[#E8611A]">IQ</span>
+          </span>
           <button onClick={() => navigate('/auth')} className="text-sm font-semibold text-[#E8611A]">
             Sign in
           </button>

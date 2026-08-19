@@ -147,7 +147,12 @@ export default function Discover() {
 
       {/* Header */}
       <div className="flex items-center justify-between px-[22px] pt-3 pb-0">
-        <h1 className="m-0 text-[23px] font-extrabold text-[#1A2E1A] tracking-tight">Discover</h1>
+        <div>
+          <p className="text-[11px] font-bold text-[#E8611A] tracking-[.06em] mb-0.5">
+            rasoi<span className="font-extrabold">IQ</span>
+          </p>
+          <h1 className="m-0 text-[23px] font-extrabold text-[#1A2E1A] tracking-tight">Discover</h1>
+        </div>
         <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center"
           style={{boxShadow:'0 2px 8px -4px rgba(26,46,26,.25)'}}>
           <SlidersHorizontal size={17} strokeWidth={2} className="text-[#1A2E1A]" />

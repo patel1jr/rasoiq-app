@@ -473,7 +473,12 @@ export default function SavedRecipes() {
 
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pt-14 pb-3">
-        <h1 className="text-2xl font-extrabold text-[#1A2E1A] tracking-tight">My Cookbook</h1>
+        <div>
+          <p className="text-[11px] font-bold text-[#E8611A] tracking-[.06em] mb-0.5">
+            rasoi<span className="font-extrabold">IQ</span>
+          </p>
+          <h1 className="text-2xl font-extrabold text-[#1A2E1A] tracking-tight">My Cookbook</h1>
+        </div>
         <button onClick={() => setShowCreate(true)}
           className="w-10 h-10 rounded-full flex items-center justify-center"
           style={{ background: '#E8611A' }}>

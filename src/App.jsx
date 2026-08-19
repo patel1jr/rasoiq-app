@@ -15,7 +15,7 @@ import GroceryList from './pages/GroceryList'
 import ResetPassword from './pages/ResetPassword'
 import BottomNav from './components/BottomNav'
 
-const HIDE_NAV = ['/recipe', '/cook', '/auth', '/log', '/grocery', '/reset-password']
+const HIDE_NAV = ['/cook', '/auth', '/log', '/grocery', '/reset-password']
 
 function SentryTest() {
   throw new Error('Sentry test error - rasoIQ frontend')

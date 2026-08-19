@@ -143,7 +143,7 @@ export default function RecipePage() {
   const tabs = ['ingredients', 'steps', 'techniques']
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#FDF6EC] relative">
+    <div className="flex flex-col min-h-screen bg-[#FDF6EC] relative pb-24">
       {/* Hero */}
       <div className="relative h-[260px] shrink-0 overflow-hidden">
         {thumbnail && !thumbError ? (

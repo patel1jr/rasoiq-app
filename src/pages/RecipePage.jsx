@@ -143,7 +143,7 @@ export default function RecipePage() {
   const tabs = ['ingredients', 'steps', 'techniques']
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#FDF6EC] relative pb-24">
+    <div className="flex flex-col min-h-screen bg-[#FDF6EC] relative pb-48">
       {/* Hero */}
       <div className="relative h-[260px] shrink-0 overflow-hidden">
         {thumbnail && !thumbError ? (
@@ -333,8 +333,8 @@ export default function RecipePage() {
         )}
       </div>
 
-      {/* Bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#FDF6EC]/95 backdrop-blur-sm border-t border-[#EDE8E0] px-5 py-4">
+      {/* Bottom bar — sits above the bottom nav */}
+      <div className="fixed bottom-[68px] left-0 right-0 max-w-md mx-auto bg-[#FDF6EC]/95 backdrop-blur-sm border-t border-[#EDE8E0] px-5 py-4">
         <div className="flex gap-3">
           <button
             onClick={() => {

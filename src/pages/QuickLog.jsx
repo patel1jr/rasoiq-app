@@ -390,9 +390,8 @@ export default function QuickLog() {
   }
 
   function handleLogged() {
+    // Close the sheet and stay on the log page so user can log another meal
     setSheet(null)
-    // small delay so the success animation is visible before we go back
-    setTimeout(() => navigate(-1), 400)
   }
 
   return (

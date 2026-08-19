@@ -362,9 +362,16 @@ export default function Home() {
             </div>
           ) : (
             <div className="mt-3 flex flex-col gap-3">
-              {['lunch', 'dinner'].map(mt => {
+              {[
+                { mt: 'breakfast', letter: 'B' },
+                { mt: 'lunch',     letter: 'L' },
+                { mt: 'snack',     letter: 'S' },
+                { mt: 'dinner',    letter: 'D' },
+              ].map(({ mt, letter }) => {
                 const entry = todayPlan.find(p => p.mealType === mt)
-                const letter = mt === 'lunch' ? 'L' : 'D'
+                // Hide unplanned breakfast and snack rows to keep the card compact;
+                // always show lunch and dinner so the user can plan them.
+                if (!entry && (mt === 'breakfast' || mt === 'snack')) return null
                 return (
                   <div key={mt} className="flex items-center gap-3">
                     <span className="w-[26px] h-[26px] rounded-[8px] flex items-center justify-center text-[11px] font-extrabold text-[#1A2E1A] shrink-0"
@@ -392,7 +399,7 @@ export default function Home() {
                           Not planned yet
                         </span>
                         <button
-                          onClick={() => setPlanSheet({ date: today, mealType: mt === 'lunch' ? 'Lunch' : 'Dinner' })}
+                          onClick={() => setPlanSheet({ date: today, mealType: mt.charAt(0).toUpperCase() + mt.slice(1) })}
                           className="h-8 px-3 rounded-2xl bg-[#E8611A] text-white text-[12px] font-bold shrink-0">
                           + Plan {mt}
                         </button>

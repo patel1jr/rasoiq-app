@@ -301,12 +301,7 @@ export default function Home() {
             <p className="mb-4 text-[14px] font-medium" style={{ color: 'rgba(255,255,255,.92)' }}>
               Extract recipes from any Indian cooking video
             </p>
-            <div className="flex items-center justify-between">
-              <div className="flex gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-white" />
-                <span className="w-2 h-2 rounded-full" style={{ background: 'rgba(255,255,255,.4)' }} />
-                <span className="w-2 h-2 rounded-full" style={{ background: 'rgba(255,255,255,.4)' }} />
-              </div>
+            <div className="flex justify-end">
               <button onClick={() => navigate('/auth')}
                 className="h-10 px-4 rounded-[20px] bg-white text-[#C2511A] text-[13.5px] font-bold">
                 Get started →

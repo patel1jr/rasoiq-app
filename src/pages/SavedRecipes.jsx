@@ -231,7 +231,12 @@ function RecipeCard({ recipe, onLongPress, onClick }) {
                 {recipe.totalTimeMinutes < 60 ? `${recipe.totalTimeMinutes}m` : `${Math.floor(recipe.totalTimeMinutes/60)}h`}
               </span>
             )}
-            {recipe.isVegetarian && <span className="w-3 h-3 rounded-full bg-green-500 shrink-0" title="Vegetarian" />}
+            {recipe.isVegetarian && (
+              <span className="flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-green-600 shrink-0" />
+                <span className="text-[11px] font-semibold text-green-700">Veg</span>
+              </span>
+            )}
           </div>
           {recipe.cookedCount > 0 && (
             <span className="text-[11px] font-semibold rounded-full px-2 py-0.5"

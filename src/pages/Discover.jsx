@@ -190,11 +190,19 @@ export default function Discover() {
               style={{color: url ? '#1A2E1A' : undefined}}
               disabled={loading}
             />
-            <button type="button" onClick={handlePaste} disabled={loading}
-              className="shrink-0 h-[34px] px-[13px] rounded-[9px] bg-[#E8611A] text-white text-[12.5px] font-bold"
-              style={{opacity: loading ? 0.4 : 1}}>
-              Paste
-            </button>
+            {url.trim() ? (
+              <button type="button" onClick={() => { setUrl(''); setUrlError(null); setFailedUrl(null); inputRef.current?.focus() }} disabled={loading}
+                className="shrink-0 h-[34px] px-[13px] rounded-[9px] bg-[#1A2E1A]/08 text-[#1A2E1A] text-[12.5px] font-bold"
+                style={{opacity: loading ? 0.4 : 1}}>
+                ✕
+              </button>
+            ) : (
+              <button type="button" onClick={handlePaste} disabled={loading}
+                className="shrink-0 h-[34px] px-[13px] rounded-[9px] bg-[#E8611A] text-white text-[12.5px] font-bold"
+                style={{opacity: loading ? 0.4 : 1}}>
+                Paste
+              </button>
+            )}
           </div>
 
           {urlError && <p className="text-xs text-red-500 mt-1.5 px-1">{urlError}</p>}

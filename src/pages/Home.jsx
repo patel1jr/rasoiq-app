@@ -249,7 +249,7 @@ export default function Home() {
   }, [session, startDate, endDate])
 
   const todayPlan = weekPlan.filter(p => p.plannedDate === today)
-  const mealPlanDates = [...new Set(weekPlan.map(p => p.plannedDate))]
+  const mealPlanDates = [...new Set(weekPlan.filter(p => p.plannedDate >= today).map(p => p.plannedDate))]
 
   const localExtractions = getLocalExtractions()
   const isUnauthNew = !session && localExtractions.length === 0

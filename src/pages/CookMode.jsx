@@ -414,7 +414,7 @@ export default function CookMode() {
             <p className="text-[10px] font-bold text-[#9B9490] uppercase tracking-widest mb-2">
               You'll need now
             </p>
-            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-6 px-6">
+            <div className="flex flex-wrap gap-2">
               {step.ingredientsNeeded.map((ing, i) => {
                 const label = typeof ing === 'string'
                   ? ing

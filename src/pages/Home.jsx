@@ -399,9 +399,13 @@ export default function Home() {
                           Not planned yet
                         </span>
                         <button
-                          onClick={() => setPlanSheet({ date: today, mealType: mt.charAt(0).toUpperCase() + mt.slice(1) })}
+                          onClick={() => session
+                            ? setPlanSheet({ date: today, mealType: mt.charAt(0).toUpperCase() + mt.slice(1) })
+                            : navigate('/auth')
+                          }
+                          title={!session ? 'Sign in to plan meals' : undefined}
                           className="h-8 px-3 rounded-2xl bg-[#E8611A] text-white text-[12px] font-bold shrink-0">
-                          + Plan {mt}
+                          {session ? `+ Plan ${mt}` : 'Sign in to plan'}
                         </button>
                       </>
                     )}

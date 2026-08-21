@@ -416,9 +416,13 @@ export default function CookMode() {
             </p>
             <div className="flex flex-wrap gap-2">
               {step.ingredientsNeeded.map((ing, i) => {
-                const label = typeof ing === 'string'
-                  ? ing
-                  : [ing.quantity, ing.unit, ing.name].filter(Boolean).join(' ')
+                const name = typeof ing === 'string' ? ing : ing.name
+                const match = recipe.ingredients?.find(
+                  r => r.name?.toLowerCase() === name?.toLowerCase()
+                )
+                const qty = match?.quantity ?? null
+                const unit = match?.unit ?? null
+                const label = [qty, unit, name].filter(Boolean).join(' ')
                 return (
                   <span
                     key={i}

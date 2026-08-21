@@ -393,10 +393,12 @@ export default function CookMode() {
           <span className="text-white font-bold text-xl">{stepIndex + 1}</span>
         </div>
 
-        {/* Step title */}
-        <h2 className="font-display text-xl font-bold text-[#1A2E1A] mt-4 leading-snug">
-          {stepTitle(step)}
-        </h2>
+        {/* Step title — only shown when an explicit title exists */}
+        {step.title && (
+          <h2 className="font-display text-xl font-bold text-[#1A2E1A] mt-4 leading-snug">
+            {step.title}
+          </h2>
+        )}
 
         {/* Timer card */}
         {step.durationMinutes > 0 && (

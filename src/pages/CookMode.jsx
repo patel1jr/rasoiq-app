@@ -422,13 +422,16 @@ export default function CookMode() {
                 )
                 const qty = match?.quantity ?? null
                 const unit = match?.unit ?? null
-                const label = [qty, unit, name].filter(Boolean).join(' ')
+                const qtyLabel = [qty, unit].filter(Boolean).join(' ')
                 return (
                   <span
                     key={i}
-                    className="shrink-0 bg-white border border-[#EDE8E0] text-[#1A2E1A] text-xs font-medium px-3 py-1.5 rounded-full whitespace-nowrap"
+                    className="shrink-0 bg-white border border-[#EDE8E0] text-[#1A2E1A] text-xs px-3 py-1.5 rounded-full whitespace-nowrap"
                   >
-                    {label}
+                    {qtyLabel && (
+                      <span className="font-bold text-[#E8611A] mr-1">{qtyLabel}</span>
+                    )}
+                    <span className="font-medium">{name}</span>
                   </span>
                 )
               })}

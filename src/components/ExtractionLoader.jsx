@@ -78,7 +78,7 @@ export default function ExtractionLoader() {
         marginBottom: 28,
         animation: 'pulse 2s ease-in-out infinite',
       }}>
-        <span style={{ color: '#1A2E1A' }}>rasoi</span>
+        <span style={{ color: '#1A2E1A' }}>raso</span>
         <span style={{ color: '#E8611A' }}>IQ</span>
       </div>
 

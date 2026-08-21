@@ -14,7 +14,7 @@ export default function AppErrorFallback() {
     }}>
       {/* Wordmark */}
       <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 40 }}>
-        <span style={{ color: '#1A2E1A' }}>rasoi</span>
+        <span style={{ color: '#1A2E1A' }}>raso</span>
         <span style={{ color: '#E8611A' }}>IQ</span>
       </div>
 

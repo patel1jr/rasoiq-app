@@ -132,7 +132,7 @@ export default function History() {
       {/* Top bar */}
       <div className="px-5 pt-14 pb-4">
         <p className="text-[11px] font-bold text-[#E8611A] tracking-[.06em] mb-0.5">
-          rasoi<span className="font-extrabold">IQ</span>
+          raso<span className="font-extrabold">IQ</span>
         </p>
         <h1 className="font-display text-xl font-bold text-[#1A2E1A]">Cooking History</h1>
       </div>

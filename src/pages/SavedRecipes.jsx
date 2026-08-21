@@ -485,7 +485,7 @@ export default function SavedRecipes() {
       <div className="flex items-center justify-between px-4 pt-14 pb-3">
         <div>
           <p className="text-[11px] font-bold text-[#E8611A] tracking-[.06em] mb-0.5">
-            rasoi<span className="font-extrabold">IQ</span>
+            raso<span className="font-extrabold">IQ</span>
           </p>
           <h1 className="text-2xl font-extrabold text-[#1A2E1A] tracking-tight">My Cookbook</h1>
         </div>

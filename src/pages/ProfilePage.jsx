@@ -64,19 +64,23 @@ export default function ProfilePage() {
       <div className="mx-5 mt-4 bg-white rounded-3xl border border-[#EDE8E0] overflow-hidden">
         {[
           { label: 'Saved Recipes', path: '/saved' },
-          { label: 'Meal Plan', path: '/meal-plan' },
-          { label: 'Pantry', path: '/pantry' },
-          { label: 'Preferences', path: '/preferences' },
+          { label: 'Meal Plan', path: null },
+          { label: 'Pantry', path: null },
+          { label: 'Preferences', path: null },
         ].map(({ label, path }, i, arr) => (
           <button
             key={label}
-            onClick={() => navigate(path)}
-            className={`w-full flex items-center justify-between px-5 py-4 text-sm font-semibold text-[#1A2E1A] ${
-              i < arr.length - 1 ? 'border-b border-[#F0EBE4]' : ''
-            }`}
+            onClick={() => path && navigate(path)}
+            disabled={!path}
+            className={`w-full flex items-center justify-between px-5 py-4 text-sm font-semibold ${
+              path ? 'text-[#1A2E1A]' : 'text-[#C0B8AF] cursor-default'
+            } ${i < arr.length - 1 ? 'border-b border-[#F0EBE4]' : ''}`}
           >
             {label}
-            <span className="text-[#C0B8AF]">›</span>
+            {path
+              ? <span className="text-[#C0B8AF]">›</span>
+              : <span className="text-[10px] font-bold uppercase tracking-wider text-[#C0B8AF]">Coming soon</span>
+            }
           </button>
         ))}
       </div>

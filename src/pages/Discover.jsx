@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { SlidersHorizontal, Smartphone, Check, Loader2, AlertCircle, X, Lock, Clock } from 'lucide-react'
+import { Smartphone, Check, Loader2, AlertCircle, X, Lock, Clock } from 'lucide-react'
 import { extractRecipe, getSavedRecipes } from '../lib/api'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, addLocalExtraction, isAtLimit, FREE_LIMIT } from '../lib/localExtractions'
@@ -153,10 +153,6 @@ export default function Discover() {
           </p>
           <h1 className="m-0 text-[23px] font-extrabold text-[#1A2E1A] tracking-tight">Discover</h1>
         </div>
-        <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center"
-          style={{boxShadow:'0 2px 8px -4px rgba(26,46,26,.25)'}}>
-          <SlidersHorizontal size={17} strokeWidth={2} className="text-[#1A2E1A]" />
-        </button>
       </div>
 
       <main className="flex-1 overflow-y-auto pt-[14px] pb-4">

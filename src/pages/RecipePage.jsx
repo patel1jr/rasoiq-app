@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, FREE_LIMIT } from '../lib/localExtractions'
 import { getRecipe, saveRecipe, unsaveRecipe, getSavedRecipes, getCollections, createCollection, addToCollection, removeFromCollection } from '../lib/api'
+import { formatQuantity } from '../lib/formatQuantity'
 
 function formatTime(mins) {
   if (!mins) return '—'
@@ -128,8 +129,7 @@ export default function RecipePage() {
 
   function scaleQty(qty) {
     if (!qty || isNaN(Number(qty))) return qty
-    const scaled = Number(qty) * ratio
-    return scaled % 1 === 0 ? scaled : +scaled.toFixed(1)
+    return formatQuantity(Number(qty) * ratio)
   }
 
   function toggleStep(idx) {

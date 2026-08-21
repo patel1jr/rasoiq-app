@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { X, ArrowLeft, Clock, Zap, ChevronRight, Check } from 'lucide-react'
 import { useSession } from '../lib/useSession'
 import { getRecipe, logMeal } from '../lib/api'
+import { formatQuantity } from '../lib/formatQuantity'
 
 // ─── Coaching tips keyed by technique id/name ──────────────────────────────
 const TECHNIQUE_TIPS = {
@@ -420,7 +421,7 @@ export default function CookMode() {
                 const match = recipe.ingredients?.find(
                   r => r.name?.toLowerCase() === name?.toLowerCase()
                 )
-                const qty = match?.quantity ?? null
+                const qty = match?.quantity != null ? formatQuantity(match.quantity) : null
                 const unit = match?.unit ?? null
                 const qtyLabel = [qty, unit].filter(Boolean).join(' ')
                 return (

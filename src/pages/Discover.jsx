@@ -239,7 +239,7 @@ export default function Discover() {
               <section className="mt-6">
                 <div className="flex items-baseline justify-between px-[22px] pb-3">
                   <span className="text-[12px] font-bold uppercase tracking-[.07em] text-[#6B5B4E]">Recently extracted</span>
-                  <span className="text-[13px] font-semibold text-[#E8611A]">See all</span>
+                  <button onClick={() => navigate('/saved')} className="text-[13px] font-semibold text-[#E8611A]">See all</button>
                 </div>
                 <div className="flex gap-3 overflow-x-auto px-[22px] pb-1" style={{scrollbarWidth:'none'}}>
                   {recentItems.slice(0, session ? 5 : 3).map((item, i) => {

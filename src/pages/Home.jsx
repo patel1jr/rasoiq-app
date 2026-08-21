@@ -299,7 +299,7 @@ export default function Home() {
               Welcome to rasoIQ!
             </h2>
             <p className="mb-4 text-[14px] font-medium" style={{ color: 'rgba(255,255,255,.92)' }}>
-              Extract recipes from any Indian cooking video
+              Turn any YouTube cooking video into a structured recipe
             </p>
             <div className="flex justify-end">
               <button onClick={() => navigate('/auth')}

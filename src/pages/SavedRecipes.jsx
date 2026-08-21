@@ -206,8 +206,13 @@ function RecipeCard({ recipe, onLongPress, onClick }) {
       onTouchEnd={cancelPress}
     >
       {thumb && !thumbErr ? (
-        <img src={thumb} alt={recipe.title} className="w-full h-28 object-cover"
-          onError={() => setThumbErr(true)} />
+        <img
+          src={thumb}
+          alt={recipe.title}
+          className="w-full h-28 object-cover"
+          onError={() => setThumbErr(true)}
+          onLoad={(e) => { if (e.target.naturalWidth <= 120) setThumbErr(true) }}
+        />
       ) : (
         <div className="w-full h-28 flex items-center justify-center"
           style={{ background: 'linear-gradient(135deg,#F3E2C4 0%,#EFD9B2 100%)' }}>

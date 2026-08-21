@@ -52,42 +52,51 @@ function formatDuration(mins) {
 }
 
 // ─── Timer component ───────────────────────────────────────────────────────
-function StepTimer({ durationMinutes }) {
+// timerState lives in a ref in CookMode so it survives step navigation (re-mounts).
+// Elapsed time is always computed from Date.now() — never counted down in state.
+function StepTimer({ durationMinutes, timerState, onUpdate }) {
   const totalSecs = durationMinutes * 60
-  const [timeLeft, setTimeLeft] = useState(totalSecs)
-  const [running, setRunning] = useState(false)
-  const [done, setDone] = useState(false)
+  const [, tick] = useState(0) // only used to trigger re-renders
   const intervalRef = useRef(null)
 
-  // Reset when step changes
-  useEffect(() => {
-    clearInterval(intervalRef.current)
-    setTimeLeft(totalSecs)
-    setRunning(false)
-    setDone(false)
-  }, [totalSecs])
+  const running = timerState.startedAt !== null
+  const elapsed = Math.min(
+    totalSecs,
+    timerState.accumulated + (running ? Math.floor((Date.now() - timerState.startedAt) / 1000) : 0)
+  )
+  const timeLeft = totalSecs - elapsed
+  const done = timerState.done
 
+  // Drive re-renders while running
   useEffect(() => {
-    if (running) {
+    if (running && !done) {
       intervalRef.current = setInterval(() => {
-        setTimeLeft(t => {
-          if (t <= 1) {
-            clearInterval(intervalRef.current)
-            setRunning(false)
-            setDone(true)
-            return 0
-          }
-          return t - 1
-        })
-      }, 1000)
+        const e = timerState.accumulated + Math.floor((Date.now() - timerState.startedAt) / 1000)
+        if (e >= totalSecs) {
+          onUpdate({ startedAt: null, accumulated: totalSecs, done: true })
+          clearInterval(intervalRef.current)
+        }
+        tick(t => t + 1)
+      }, 500)
     } else {
       clearInterval(intervalRef.current)
     }
     return () => clearInterval(intervalRef.current)
-  }, [running])
+  }, [running, done])
+
+  function toggleTimer() {
+    if (done) return
+    if (running) {
+      const newAccumulated = timerState.accumulated + Math.floor((Date.now() - timerState.startedAt) / 1000)
+      onUpdate({ startedAt: null, accumulated: Math.min(newAccumulated, totalSecs) })
+    } else {
+      onUpdate({ startedAt: Date.now() })
+    }
+    tick(t => t + 1)
+  }
 
   const isLongRest = durationMinutes >= 240
-  const label = isLongRest ? 'Long rest — we\'ll remind you' : 'Step timer'
+  const label = isLongRest ? "Long rest — we'll remind you" : 'Step timer'
 
   return (
     <div className="bg-white rounded-2xl border border-[#EDE8E0] p-4 mt-4 shadow-sm">
@@ -115,10 +124,10 @@ function StepTimer({ durationMinutes }) {
             {formatTimer(timeLeft)}
           </p>
           <button
-            onClick={() => setRunning(r => !r)}
+            onClick={toggleTimer}
             className="mt-3 w-full border-2 border-[#E8611A] text-[#E8611A] font-semibold py-2.5 rounded-full text-sm transition-colors hover:bg-[#FEF0E8]"
           >
-            {running ? 'Pause' : timeLeft < totalSecs ? 'Resume' : 'Start timer'}
+            {running ? 'Pause' : elapsed > 0 ? 'Resume' : 'Start timer'}
           </button>
         </>
       )}
@@ -246,6 +255,15 @@ export default function CookMode() {
   const [finished, setFinished] = useState(false)
   const [techniqueSheet, setTechniqueSheet] = useState(null)
   const contentRef = useRef(null)
+  // Persists timer state across step navigation — keyed by step index
+  const timersRef = useRef({})
+
+  function getTimerState(idx) {
+    if (!timersRef.current[idx]) {
+      timersRef.current[idx] = { startedAt: null, accumulated: 0, done: false }
+    }
+    return timersRef.current[idx]
+  }
 
   // Fetch recipe if not in state
   useEffect(() => {
@@ -382,7 +400,12 @@ export default function CookMode() {
 
         {/* Timer card */}
         {step.durationMinutes > 0 && (
-          <StepTimer key={stepIndex} durationMinutes={step.durationMinutes} />
+          <StepTimer
+            key={stepIndex}
+            durationMinutes={step.durationMinutes}
+            timerState={getTimerState(stepIndex)}
+            onUpdate={(patch) => Object.assign(timersRef.current[stepIndex], patch)}
+          />
         )}
 
         {/* Ingredients needed */}

@@ -151,7 +151,7 @@ export default function Discover() {
   async function handleExtractFromText(e) {
     e?.preventDefault()
     const trimmed = pasteText.trim()
-    if (trimmed.length < 50) { setPasteError('Paste more text — we need ingredients and cooking steps to extract a recipe'); return }
+    if (trimmed.length < 30) { setPasteError('Paste more text — we need ingredients and cooking steps to extract a recipe'); return }
     if (!session && isAtLimit()) { setShowLimitSheet(true); return }
     setPasteError(null); setPasteLoading(true)
     try {
@@ -286,12 +286,9 @@ export default function Discover() {
 
             {/* Character count */}
             <div className="flex justify-end mt-1">
-              {pasteText.length > 0 && pasteText.trim().length < 50
-                ? <span className="text-xs text-red-500">Too short — paste more text</span>
-                : <span className={`text-xs ${pasteText.trim().length >= 50 ? 'text-[#E8611A]' : 'text-[#9B9490]'}`}>
-                    {pasteText.length} characters
-                  </span>
-              }
+              <span className={`text-xs ${pasteText.trim().length >= 30 ? 'text-[#2D7A5A]' : 'text-[#9B9490]'}`}>
+                {pasteText.length} characters
+              </span>
             </div>
 
             {/* Optional title */}
@@ -307,7 +304,7 @@ export default function Discover() {
             {/* Extract button */}
             <button
               onClick={handleExtractFromText}
-              disabled={pasteLoading || pasteText.trim().length < 50}
+              disabled={pasteLoading || pasteText.trim().length < 30}
               className="mt-3 w-full h-[50px] rounded-[25px] text-white text-[15.5px] font-bold flex items-center justify-center gap-2 transition-opacity disabled:opacity-60"
               style={{background: pasteLoading ? 'rgba(194,81,26,.55)' : '#C2511A', boxShadow:'0 8px 18px -8px rgba(194,81,26,.7)'}}>
               {pasteLoading && <span className="w-[15px] h-[15px] rounded-full border-[2.5px] border-white/40 border-t-white inline-block animate-spin" />}

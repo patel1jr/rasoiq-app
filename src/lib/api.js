@@ -10,6 +10,16 @@ export async function extractRecipe(url, forceRefresh = false) {
   return res.json()
 }
 
+export async function extractFromText(text, title, sourceUrl) {
+  const res = await fetch(`${API_URL}/api/recipes/extract/text`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, title, sourceUrl })
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
 export async function saveRecipe(recipeId, token) {
   const res = await fetch(`${API_URL}/api/user/recipes/save`, {
     method: 'POST',

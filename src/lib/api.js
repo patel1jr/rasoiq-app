@@ -10,6 +10,16 @@ export async function extractRecipe(url, forceRefresh = false) {
   return res.json()
 }
 
+export async function extractFromUrl(url) {
+  const res = await fetch(`${API_URL}/api/recipes/extract/url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
 export async function extractFromText(text, title, sourceUrl) {
   const res = await fetch(`${API_URL}/api/recipes/extract/text`, {
     method: 'POST',

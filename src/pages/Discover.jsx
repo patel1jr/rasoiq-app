@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Smartphone, Check, Loader2, AlertCircle, X, Lock, Clock, ClipboardList } from 'lucide-react'
-import { extractRecipe, extractFromText, getSavedRecipes } from '../lib/api'
+import { extractRecipe, extractFromUrl, extractFromText, getSavedRecipes } from '../lib/api'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, addLocalExtraction, isAtLimit, FREE_LIMIT } from '../lib/localExtractions'
 import ExtractionLoader from '../components/ExtractionLoader'
@@ -25,7 +25,11 @@ const CUISINES = [
   { icon: '🥗', name: 'Healthy'     },
 ]
 
-function isValidYouTubeUrl(url) {
+function isValidUrl(url) {
+  try { new URL(url); return true } catch { return false }
+}
+
+function isYouTubeUrl(url) {
   return url.includes('youtube.com/watch') || url.includes('youtu.be/') || url.includes('youtube.com/shorts/')
 }
 
@@ -47,6 +51,7 @@ export default function Discover() {
   const [showLimitSheet, setShowLimitSheet] = useState(false)
   const [showFeedback, setShowFeedback]     = useState(false)
   const [failedUrl, setFailedUrl]           = useState(null)
+  const [isBlogExtraction, setIsBlogExtraction] = useState(false)
   // Text paste state
   const [pasteText, setPasteText]       = useState('')
   const [pasteTitle, setPasteTitle]     = useState('')
@@ -118,19 +123,23 @@ export default function Discover() {
   async function handleExtract(e) {
     e?.preventDefault()
     if (!url.trim() || loading) return
-    if (!isValidYouTubeUrl(url.trim())) {
-      setUrlError('Please enter a valid YouTube URL (youtube.com or youtu.be)')
+    if (!isValidUrl(url.trim())) {
+      setUrlError('Please enter a valid URL')
       return
     }
     setUrlError(null)
     if (!session && isAtLimit()) { setShowLimitSheet(true); return }
 
+    const isYT = isYouTubeUrl(url.trim())
+    setIsBlogExtraction(!isYT)
     setError(null); setLoading(true); setStage(0)
     const t1 = setTimeout(() => setStage(1), 8000)
     const t2 = setTimeout(() => setStage(2), 20000)
 
     try {
-      const recipe = await extractRecipe(url.trim())
+      const recipe = isYT
+        ? await extractRecipe(url.trim())
+        : await extractFromUrl(url.trim())
       clearTimeout(t1); clearTimeout(t2)
       addLocalExtraction(recipe, !!session)
       const recipeId = recipe.id || recipe.recipeId
@@ -141,7 +150,7 @@ export default function Discover() {
       setError(
         msg.toLowerCase().includes('transcript') || msg.toLowerCase().includes('caption')
           ? "This video doesn't have captions. Try a different video."
-          : msg || 'Could not extract recipe from this video.'
+          : msg || `Could not extract recipe from this ${isYT ? 'video' : 'page'}.`
       )
       setFailedUrl(url.trim())
       setLoading(false); setStage(-1)
@@ -195,7 +204,7 @@ export default function Discover() {
 
         {/* Extraction card */}
         <div className="mx-[22px] bg-white rounded-[20px] p-4" style={{opacity: loading ? 0.9 : 1, boxShadow:'0 8px 20px -16px rgba(26,46,26,.35)'}}>
-          <p className="text-[11px] font-bold uppercase tracking-[.07em] text-[#E8611A] mb-2.5">Extract from video</p>
+          <p className="text-[11px] font-bold uppercase tracking-[.07em] text-[#E8611A] mb-2.5">Extract from video or website</p>
 
           {/* URL input */}
           <div className={`flex items-center gap-2.5 rounded-[13px] px-3.5 h-[50px] ${urlError ? 'bg-red-50 border border-red-200' : 'bg-[#FAF3E7] border-[1.5px] border-[#1A2E1A]/10'}`}>
@@ -205,7 +214,7 @@ export default function Discover() {
               type="url"
               value={url}
               onChange={e => { setUrl(e.target.value); setUrlError(null) }}
-              placeholder="Paste YouTube URL here"
+              placeholder="Paste YouTube or recipe website URL"
               className="flex-1 text-[14px] bg-transparent outline-none placeholder:text-[#1A2E1A]/45 min-w-0"
               style={{color: url ? '#1A2E1A' : undefined}}
               disabled={loading}
@@ -239,7 +248,7 @@ export default function Discover() {
           </button>
 
           {/* Extraction loader */}
-          {loading && <ExtractionLoader />}
+          {loading && <ExtractionLoader firstStageLabel={isBlogExtraction ? 'Reading the recipe page' : undefined} />}
 
           {/* Error */}
           {error && (

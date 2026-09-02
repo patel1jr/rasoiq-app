@@ -113,7 +113,7 @@ function NewUserSections({ onPopularTap, onLogTap }) {
             </p>
             <p className="mt-1 text-sm font-medium leading-snug"
               style={{ color: 'rgba(255,255,255,.9)' }}>
-              Extract a recipe from YouTube to build your cookbook
+              Paste any cooking video link or recipe text
             </p>
             <button
               onClick={() => onPopularTap(null)}

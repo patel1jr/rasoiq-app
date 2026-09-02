@@ -12,13 +12,16 @@ const INGREDIENTS = [
   { emoji: '🥛', name: 'dairy', delay: 3.2 },
 ]
 
-const STAGES = [
+const DEFAULT_STAGES = [
   { label: 'Reading the video transcript', duration: 8000 },
   { label: 'Identifying ingredients', duration: 10000 },
   { label: 'Detecting cooking techniques', duration: 0 },
 ]
 
-export default function ExtractionLoader() {
+export default function ExtractionLoader({ firstStageLabel } = {}) {
+  const STAGES = firstStageLabel
+    ? [{ ...DEFAULT_STAGES[0], label: firstStageLabel }, ...DEFAULT_STAGES.slice(1)]
+    : DEFAULT_STAGES
   const [visibleIngredients, setVisibleIngredients] = useState([])
   const [currentStage, setCurrentStage] = useState(0)
   const [dots, setDots] = useState('')

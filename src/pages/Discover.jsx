@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Smartphone, Check, Loader2, AlertCircle, X, Lock, Clock } from 'lucide-react'
-import { extractRecipe, getSavedRecipes } from '../lib/api'
+import { Smartphone, Check, Loader2, AlertCircle, X, Lock, Clock, ClipboardList } from 'lucide-react'
+import { extractRecipe, extractFromText, getSavedRecipes } from '../lib/api'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, addLocalExtraction, isAtLimit, FREE_LIMIT } from '../lib/localExtractions'
 import ExtractionLoader from '../components/ExtractionLoader'
@@ -47,6 +47,12 @@ export default function Discover() {
   const [showLimitSheet, setShowLimitSheet] = useState(false)
   const [showFeedback, setShowFeedback]     = useState(false)
   const [failedUrl, setFailedUrl]           = useState(null)
+  // Text paste state
+  const [pasteText, setPasteText]       = useState('')
+  const [pasteTitle, setPasteTitle]     = useState('')
+  const [pasteLoading, setPasteLoading] = useState(false)
+  const [pasteError, setPasteError]     = useState(null)
+  const textareaRef = useRef(null)
   const navigate = useNavigate()
   const location = useLocation()
   const inputRef = useRef(null)
@@ -139,6 +145,24 @@ export default function Discover() {
       )
       setFailedUrl(url.trim())
       setLoading(false); setStage(-1)
+    }
+  }
+
+  async function handleExtractFromText(e) {
+    e?.preventDefault()
+    const trimmed = pasteText.trim()
+    if (trimmed.length < 50) { setPasteError('Paste more text — we need ingredients and cooking steps to extract a recipe'); return }
+    if (!session && isAtLimit()) { setShowLimitSheet(true); return }
+    setPasteError(null); setPasteLoading(true)
+    try {
+      const recipe = await extractFromText(trimmed, pasteTitle.trim() || undefined, undefined)
+      addLocalExtraction(recipe, !!session)
+      const recipeId = recipe.id || recipe.recipeId
+      navigate(recipeId ? `/recipe/${recipeId}` : '/recipe', { state: { recipe } })
+    } catch (err) {
+      const msg = err?.detail || err?.title || 'Could not extract a recipe from the pasted text.'
+      setPasteError(msg)
+      setPasteLoading(false)
     }
   }
 
@@ -235,8 +259,75 @@ export default function Discover() {
           )}
         </div>
 
-        {/* Browse sections — hide while loading */}
+        {/* Divider */}
+        {!loading && !pasteLoading && (
+          <div className="mx-[22px] mt-4 flex items-center gap-3">
+            <div className="flex-1 h-px bg-[#E8E0D5]" />
+            <span className="text-[12px] font-semibold text-[#9B9490]">or</span>
+            <div className="flex-1 h-px bg-[#E8E0D5]" />
+          </div>
+        )}
+
+        {/* Text paste card */}
         {!loading && (
+          <div className="mx-[22px] mt-4 bg-white rounded-[20px] p-4" style={{boxShadow:'0 8px 20px -16px rgba(26,46,26,.35)', opacity: pasteLoading ? 0.9 : 1}}>
+            <p className="text-[11px] font-bold uppercase tracking-[.07em] text-[#E8611A] mb-2.5">Paste recipe text</p>
+
+            <textarea
+              ref={textareaRef}
+              value={pasteText}
+              onChange={e => { setPasteText(e.target.value); setPasteError(null) }}
+              placeholder={"Paste recipe text from Instagram, WhatsApp, a blog, or anywhere else..."}
+              disabled={pasteLoading}
+              rows={4}
+              className="w-full rounded-xl border border-[#EDE8E0] bg-[#FAF3E7] px-3.5 py-3 text-[14px] leading-relaxed text-[#1A2E1A] placeholder:text-[#1A2E1A]/40 outline-none resize-none focus:border-[#E8611A]/40 transition-colors"
+              style={{minHeight: 120, maxHeight: 300}}
+            />
+
+            {/* Character count */}
+            <div className="flex justify-end mt-1">
+              {pasteText.length > 0 && pasteText.trim().length < 50
+                ? <span className="text-xs text-red-500">Too short — paste more text</span>
+                : <span className={`text-xs ${pasteText.trim().length >= 50 ? 'text-[#E8611A]' : 'text-[#9B9490]'}`}>
+                    {pasteText.length} characters
+                  </span>
+              }
+            </div>
+
+            {/* Optional title */}
+            <input
+              type="text"
+              value={pasteTitle}
+              onChange={e => setPasteTitle(e.target.value)}
+              placeholder="Recipe name (optional)"
+              disabled={pasteLoading}
+              className="mt-2 w-full rounded-lg border border-[#EDE8E0] bg-[#FAF3E7] px-3.5 py-2.5 text-[13px] text-[#1A2E1A] placeholder:text-[#1A2E1A]/40 outline-none focus:border-[#E8611A]/40 transition-colors"
+            />
+
+            {/* Extract button */}
+            <button
+              onClick={handleExtractFromText}
+              disabled={pasteLoading || pasteText.trim().length < 50}
+              className="mt-3 w-full h-[50px] rounded-[25px] text-white text-[15.5px] font-bold flex items-center justify-center gap-2 transition-opacity disabled:opacity-60"
+              style={{background: pasteLoading ? 'rgba(194,81,26,.55)' : '#C2511A', boxShadow:'0 8px 18px -8px rgba(194,81,26,.7)'}}>
+              {pasteLoading && <span className="w-[15px] h-[15px] rounded-full border-[2.5px] border-white/40 border-t-white inline-block animate-spin" />}
+              {pasteLoading ? 'Extracting…' : 'Extract from text'}
+            </button>
+
+            {pasteLoading && <ExtractionLoader firstStageLabel="Reading your recipe text" />}
+
+            {pasteError && (
+              <div className="mt-3 bg-red-50 border border-red-200 rounded-xl px-3.5 py-3 flex gap-2.5 items-start">
+                <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                <p className="flex-1 text-[12.5px] text-red-600">{pasteError}</p>
+                <button onClick={() => setPasteError(null)} className="text-xs text-red-400 font-bold shrink-0">✕</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Browse sections — hide while loading */}
+        {!loading && !pasteLoading && (
           <>
             {/* Recently extracted */}
             {recentItems.length > 0 && (

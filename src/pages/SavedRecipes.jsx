@@ -6,6 +6,7 @@ import {
   getSavedRecipes, getCollections, createCollection,
   addToCollection, removeFromCollection, unsaveRecipe,
 } from '../lib/api'
+import { thumbUrl, isYouTubeUrl } from '../utils/videoId'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,70 @@ function GradientCard({ emoji, name, height = 'h-40', index = 0, allRecipes = fa
       <span className="text-5xl relative" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.18))' }}>
         {emoji}
       </span>
+    </div>
+  )
+}
+
+function cuisineEmoji(region) {
+  if (!region) return '🍳'
+  const r = region.toLowerCase()
+  if (r.includes('south indian')) return '🥥'
+  if (r.includes('punjabi'))      return '🍛'
+  if (r.includes('bengali'))      return '🐟'
+  if (r.includes('gujarati'))     return '🫓'
+  return '🍳'
+}
+
+// Thumbnail for a single recipe — YouTube img or gradient fallback
+function RecipeThumbCell({ recipe, className = 'w-full h-full object-cover' }) {
+  const [err, setErr] = useState(false)
+  const isYT  = isYouTubeUrl(recipe.sourceUrl)
+  const src   = isYT ? thumbUrl(recipe.sourceUrl) : null
+  const emoji = isYT ? cuisineEmoji(recipe.cuisineRegion) : '🌐'
+
+  if (src && !err) {
+    return (
+      <img src={src} alt={recipe.title} className={className}
+        onError={() => setErr(true)}
+        onLoad={(e) => { if (e.target.naturalWidth <= 120) setErr(true) }}
+      />
+    )
+  }
+  return (
+    <div className="w-full h-full flex items-center justify-center"
+      style={{ background: 'linear-gradient(135deg,#E8611A 0%,#C4510F 100%)' }}>
+      <span className="text-2xl">{emoji}</span>
+    </div>
+  )
+}
+
+// Collection card cover — 2×2 mosaic of recipe thumbs, or emoji if empty
+function CollectionCover({ emoji, name, colRecipes, height = 'h-40', index = 0 }) {
+  if (colRecipes.length === 0) {
+    return (
+      <div className={`${height} flex items-center justify-center rounded-t-2xl`}
+        style={{ background: 'linear-gradient(145deg,#F3EEE8 0%,#EDE5DC 100%)' }}>
+        <span className="text-5xl">{emoji}</span>
+      </div>
+    )
+  }
+
+  const cells = colRecipes.slice(0, 4)
+  // Pad to 4 so the grid stays square
+  while (cells.length < 4) cells.push(null)
+
+  return (
+    <div className={`${height} grid grid-cols-2 rounded-t-2xl overflow-hidden`}>
+      {cells.map((r, i) => (
+        <div key={i} className="overflow-hidden">
+          {r ? (
+            <RecipeThumbCell recipe={r} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full"
+              style={{ background: 'linear-gradient(145deg,#F3EEE8 0%,#EDE5DC 100%)' }} />
+          )}
+        </div>
+      ))}
     </div>
   )
 }
@@ -185,8 +250,6 @@ function CreateCollectionSheet({ onClose, onCreate }) {
 // ── recipe card (inside collection) ──────────────────────────────────────────
 function RecipeCard({ recipe, onLongPress, onClick }) {
   const pressTimer = useRef(null)
-  const thumb = recipe.thumbnailUrl || null
-  const [thumbErr, setThumbErr] = useState(false)
 
   function startPress() {
     pressTimer.current = setTimeout(() => onLongPress?.(), 500)
@@ -205,20 +268,9 @@ function RecipeCard({ recipe, onLongPress, onClick }) {
       onTouchStart={startPress}
       onTouchEnd={cancelPress}
     >
-      {thumb && !thumbErr ? (
-        <img
-          src={thumb}
-          alt={recipe.title}
-          className="w-full h-28 object-cover"
-          onError={() => setThumbErr(true)}
-          onLoad={(e) => { if (e.target.naturalWidth <= 120) setThumbErr(true) }}
-        />
-      ) : (
-        <div className="w-full h-28 flex items-center justify-center"
-          style={{ background: 'linear-gradient(135deg,#F3E2C4 0%,#EFD9B2 100%)' }}>
-          <span className="text-3xl">🍽️</span>
-        </div>
-      )}
+      <div className="w-full h-28 overflow-hidden">
+        <RecipeThumbCell recipe={recipe} className="w-full h-28 object-cover" />
+      </div>
       <div className="p-3">
         <p className="text-sm font-bold text-[#1A2E1A] leading-snug line-clamp-2">{recipe.title}</p>
         {recipe.channelName && (
@@ -577,7 +629,13 @@ export default function SavedRecipes() {
                     <button key={col.id}
                       onClick={() => setActiveCollection(col)}
                       className="bg-white rounded-2xl overflow-hidden shadow-sm text-left">
-                      <GradientCard emoji={col.emoji || '📁'} name={col.name} height="h-40" index={i} />
+                      <CollectionCover
+                        emoji={col.emoji || '📁'}
+                        name={col.name}
+                        colRecipes={colRecipes}
+                        height="h-40"
+                        index={i}
+                      />
                       <div className="p-3">
                         <p className="text-sm font-bold text-[#1A2E1A] truncate">
                           {col.emoji || '📁'} {col.name}

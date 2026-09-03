@@ -12,3 +12,11 @@ export function thumbUrl(url) {
   const id = getVideoId(url)
   return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null
 }
+
+// Alias used by newer components
+export const getThumbnailUrl = thumbUrl
+
+export function isYouTubeUrl(url) {
+  if (!url) return false
+  return url.includes('youtube.com') || url.includes('youtu.be')
+}

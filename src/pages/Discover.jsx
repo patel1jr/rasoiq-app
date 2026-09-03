@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Smartphone, Check, Loader2, AlertCircle, X, Lock, Clock, ClipboardList } from 'lucide-react'
 import { extractRecipe, extractFromUrl, extractFromText, getSavedRecipes } from '../lib/api'
+import { thumbUrl, isYouTubeUrl } from '../utils/videoId'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, addLocalExtraction, isAtLimit, FREE_LIMIT } from '../lib/localExtractions'
 import ExtractionLoader from '../components/ExtractionLoader'
@@ -24,6 +25,27 @@ const CUISINES = [
   { icon: '🌍', name: 'Global'      },
   { icon: '🥗', name: 'Healthy'     },
 ]
+
+function RecentThumb({ sourceUrl }) {
+  const [err, setErr] = useState(false)
+  const isYT = isYouTubeUrl(sourceUrl)
+  const src  = isYT ? thumbUrl(sourceUrl) : null
+
+  if (src && !err) {
+    return (
+      <img src={src} alt="" className="w-full h-[90px] object-cover"
+        onError={() => setErr(true)}
+        onLoad={(e) => { if (e.target.naturalWidth <= 120) setErr(true) }}
+      />
+    )
+  }
+  return (
+    <div className="w-full h-[90px] flex items-center justify-center"
+      style={{ background: 'linear-gradient(135deg,#E8611A 0%,#C4510F 100%)' }}>
+      <span className="text-3xl">{isYT ? '🍳' : '🌐'}</span>
+    </div>
+  )
+}
 
 function isValidUrl(url) {
   try { new URL(url); return true } catch { return false }
@@ -346,12 +368,13 @@ export default function Discover() {
                   {recentItems.slice(0, session ? 5 : 3).map((item, i) => {
                     const rid = item.recipeId || item.recipe?.id
                     const author = item.channelName || item.recipe?.source?.channelName
+                    const sourceUrl = item.sourceUrl || item.recipe?.sourceUrl
                     return (
                       <button key={rid || i}
                         onClick={() => navigate(rid ? `/recipe/${rid}` : '/recipe', { state: { recipe: item.recipe || item } })}
                         className="shrink-0 w-[180px] text-left bg-white rounded-[16px] overflow-hidden cursor-pointer"
                         style={{boxShadow:'0 6px 16px -14px rgba(26,46,26,.4)'}}>
-                        <div className="h-[90px]" style={{backgroundImage:'repeating-linear-gradient(135deg,#F3E2C4 0 11px,#EFD9B2 11px 22px)'}} />
+                        <RecentThumb sourceUrl={sourceUrl} />
                         <div className="px-3 pt-[11px] pb-[13px]">
                           <p className="text-[14px] font-bold text-[#1A2E1A] leading-tight line-clamp-2">{item.title}</p>
                           {author && <p className="mt-[5px] text-[11px] font-medium text-[#6B5B4E]">By {author}</p>}

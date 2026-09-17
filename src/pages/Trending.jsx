@@ -7,12 +7,12 @@ import { getVideoId } from '../utils/videoId'
 
 // ── cuisine helpers ───────────────────────────────────────────────────────────
 
-const CUISINE_ACCENT = {
+const CUISINE_COLORS = {
   'punjabi':      '#E8611A',
   'north indian': '#F5A623',
   'south indian': '#2D7A5A',
-  'hyderabadi':   '#F5A623',
-  'bengali':      '#2D7A5A',
+  'hyderabadi':   '#9B2335',
+  'bengali':      '#6B8CAE',
   'gujarati':     '#F5A623',
   'street food':  '#E8836A',
   'global':       '#6B8CAE',
@@ -20,25 +20,24 @@ const CUISINE_ACCENT = {
 }
 
 function accentFor(region) {
-  if (!region) return '#6B8CAE'
+  if (!region) return '#6B5B4E'
   const r = region.toLowerCase()
-  for (const [key, color] of Object.entries(CUISINE_ACCENT)) {
+  for (const [key, color] of Object.entries(CUISINE_COLORS)) {
     if (r.includes(key)) return color
   }
-  return '#6B8CAE'
+  return '#6B5B4E'
 }
 
 // Returns null if the tag should be hidden ("Other", null, blank)
 function visibleCuisineTag(region, title, channelName) {
   if (!region || region.toLowerCase() === 'other') {
-    // Try to infer from title/channel
     const haystack = `${title ?? ''} ${channelName ?? ''}`.toLowerCase()
-    if (haystack.includes('punjabi') || haystack.includes('dhaba'))       return 'Punjabi'
+    if (haystack.includes('punjabi') || haystack.includes('dhaba'))                        return 'Punjabi'
     if (haystack.includes('south indian') || haystack.includes('idli') || haystack.includes('dosa')) return 'South Indian'
-    if (haystack.includes('hyderabadi') || haystack.includes('biryani'))  return 'Hyderabadi'
-    if (haystack.includes('bengali') || haystack.includes('mishti'))      return 'Bengali'
-    if (haystack.includes('gujarati') || haystack.includes('thepla'))     return 'Gujarati'
-    if (haystack.includes('street food') || haystack.includes('chaat'))   return 'Street Food'
+    if (haystack.includes('hyderabadi') || haystack.includes('biryani'))                   return 'Hyderabadi'
+    if (haystack.includes('bengali') || haystack.includes('mishti'))                       return 'Bengali'
+    if (haystack.includes('gujarati') || haystack.includes('thepla'))                      return 'Gujarati'
+    if (haystack.includes('street food') || haystack.includes('chaat'))                    return 'Street Food'
     return null
   }
   return region
@@ -50,7 +49,7 @@ function saveLabel(count) {
   return 'New'
 }
 
-// ── card components ───────────────────────────────────────────────────────────
+// ── card ──────────────────────────────────────────────────────────────────────
 
 function BottomRow({ recipe }) {
   return (
@@ -77,80 +76,17 @@ function BottomRow({ recipe }) {
   )
 }
 
-// Text-forward card — used when no valid thumbnail
-function TextCard({ recipe, saved, saving, onSave }) {
+// Single unified card — accent bar always visible; image shown only once loaded
+function RecipeCard({ recipe, onSave }) {
   const navigate = useNavigate()
+  const [saved,        setSaved]        = useState(recipe.isSaved ?? false)
+  const [saving,       setSaving]       = useState(false)
+  const [imgLoaded,    setImgLoaded]    = useState(false)
+  const [imgError,     setImgError]     = useState(false)
+
   const accent  = accentFor(recipe.cuisineRegion)
   const tag     = visibleCuisineTag(recipe.cuisineRegion, recipe.title, recipe.channelName)
 
-  return (
-    <button
-      className="w-full text-left bg-white rounded-2xl overflow-hidden"
-      onClick={() => navigate(`/recipe/${recipe.id}`, { state: { recipe: { ...recipe, recipeId: recipe.id } } })}
-      style={{ boxShadow: '0 4px 16px -10px rgba(26,46,26,.3)' }}
-    >
-      {/* Accent bar */}
-      <div className="h-1.5 rounded-t-2xl" style={{ background: accent }} />
-
-      <div className="p-4 relative">
-        {/* Heart — no background circle */}
-        <button
-          onClick={(e) => { e.stopPropagation(); onSave() }}
-          disabled={saving}
-          className="absolute top-3 right-3">
-          <Heart size={15} className={saved ? 'text-[#E8611A]' : 'text-[#C0B8AF]'}
-            fill={saved ? '#E8611A' : 'none'} strokeWidth={2} />
-        </button>
-
-        {/* Cuisine tag */}
-        {tag && (
-          <p className="text-[10px] font-bold uppercase tracking-[.08em] mb-2"
-            style={{ color: accent }}>
-            {tag}
-          </p>
-        )}
-
-        {/* Title — hero element */}
-        <p className="text-[15px] font-extrabold text-[#1A2E1A] leading-snug line-clamp-2 pr-6">
-          {recipe.title}
-        </p>
-
-        {recipe.channelName && (
-          <p className="text-xs text-[#9B9490] mt-1.5 truncate">By {recipe.channelName}</p>
-        )}
-
-        <BottomRow recipe={recipe} />
-      </div>
-    </button>
-  )
-}
-
-// Wrapper — decides which card to render; ImageCard self-reports failure via null
-function RecipeCard({ recipe, onSave }) {
-  const [saved,  setSaved]  = useState(recipe.isSaved ?? false)
-  const [saving, setSaving] = useState(false)
-  const [imgFailed, setImgFailed] = useState(false)
-
-  const videoId = getVideoId(recipe.sourceUrl)
-  const hasThumb = !!(recipe.thumbnailUrl || videoId)
-
-  function handleSave() { onSave(recipe, setSaved, setSaving) }
-
-  if (hasThumb && !imgFailed) {
-    return (
-      <ImageCardWithFailure
-        recipe={recipe} saved={saved} saving={saving} onSave={handleSave}
-        onFailed={() => setImgFailed(true)}
-      />
-    )
-  }
-  return <TextCard recipe={recipe} saved={saved} saving={saving} onSave={handleSave} />
-}
-
-// ImageCard that reports back when the img fails (so parent can swap to TextCard)
-function ImageCardWithFailure({ recipe, saved, saving, onSave, onFailed }) {
-  const navigate = useNavigate()
-  const [err, setErr] = useState(false)
   const videoId = getVideoId(recipe.sourceUrl)
   const imgSrc  = recipe.thumbnailUrl || (videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null)
 
@@ -158,34 +94,70 @@ function ImageCardWithFailure({ recipe, saved, saving, onSave, onFailed }) {
     console.log('[Trending] sourceUrl:', recipe.sourceUrl, '→ videoId:', videoId, '→ imgSrc:', imgSrc)
   }
 
-  function handleImgFail() { setErr(true); onFailed() }
+  const showImage = !!(imgSrc && !imgError && imgLoaded)
+  const hasImg    = !!(imgSrc && !imgError) // still trying or succeeded
 
-  if (!imgSrc) return null // RecipeCard will render TextCard since hasThumb is false
+  function handleLoad(e) {
+    if (e.target.naturalWidth <= 120) { setImgError(true); return }
+    setImgLoaded(true)
+  }
+
+  function handleSave(e) { e.stopPropagation(); onSave(recipe, setSaved, setSaving) }
 
   return (
     <button
-      className="w-full text-left bg-white rounded-2xl overflow-hidden"
+      className="w-full text-left bg-white rounded-2xl overflow-hidden flex flex-col"
       onClick={() => navigate(`/recipe/${recipe.id}`, { state: { recipe: { ...recipe, recipeId: recipe.id } } })}
-      style={{ boxShadow: '0 4px 16px -10px rgba(26,46,26,.3)' }}
+      style={{ boxShadow: '0 4px 16px -10px rgba(26,46,26,.3)', minHeight: 180 }}
     >
-      <div className="relative rounded-t-2xl overflow-hidden">
-        <img src={imgSrc} alt="" className="w-full h-28 object-cover"
-          onError={handleImgFail}
-          onLoad={(e) => { if (e.target.naturalWidth <= 120) handleImgFail() }}
+      {/* Accent bar — always present */}
+      <div style={{ height: 4, background: accent, borderRadius: '12px 12px 0 0', flexShrink: 0 }} />
+
+      {/* Thumbnail — hidden until loaded, no flash */}
+      {hasImg && (
+        <img
+          src={imgSrc}
+          alt={recipe.title}
+          loading="lazy"
+          className="w-full object-cover"
+          style={{ height: showImage ? 96 : 0, display: 'block' }}
+          onLoad={handleLoad}
+          onError={() => setImgError(true)}
         />
-        <button onClick={(e) => { e.stopPropagation(); onSave() }} disabled={saving}
-          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow-sm"
-          style={{ backdropFilter: 'blur(4px)' }}>
-          <Heart size={13} className={saved ? 'text-[#E8611A]' : 'text-[#9B9490]'}
-            fill={saved ? '#E8611A' : 'none'} strokeWidth={2} />
+      )}
+
+      {/* Body */}
+      <div className="p-3 flex flex-col flex-1 relative">
+        {/* Heart */}
+        <button onClick={handleSave} disabled={saving} className="absolute top-2 right-2">
+          <Heart
+            size={15}
+            className={saved ? 'text-[#E8611A]' : 'text-[#C0B8AF]'}
+            fill={saved ? '#E8611A' : 'none'}
+            strokeWidth={2}
+          />
         </button>
-      </div>
-      <div className="p-3">
-        <p className="text-sm font-bold text-[#1A2E1A] leading-snug line-clamp-2">{recipe.title}</p>
+
+        {/* Cuisine tag — only when no image showing (text-forward mode) */}
+        {!showImage && tag && (
+          <p className="text-[10px] font-bold uppercase tracking-[.08em] mb-1.5 pr-5"
+            style={{ color: accent }}>
+            {tag}
+          </p>
+        )}
+
+        {/* Title */}
+        <p className={`font-bold text-[#1A2E1A] leading-snug line-clamp-2 pr-5 ${showImage ? 'text-sm' : 'text-[15px] font-extrabold'}`}>
+          {recipe.title}
+        </p>
+
         {recipe.channelName && (
           <p className="text-xs text-[#9B9490] mt-1 truncate">By {recipe.channelName}</p>
         )}
-        <BottomRow recipe={recipe} />
+
+        <div className="mt-auto">
+          <BottomRow recipe={recipe} />
+        </div>
       </div>
     </button>
   )
@@ -193,12 +165,13 @@ function ImageCardWithFailure({ recipe, saved, saving, onSave, onFailed }) {
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl overflow-hidden animate-pulse">
-      <div className="h-28 bg-[#1A2E1A]/10" />
+    <div className="bg-white rounded-2xl overflow-hidden animate-pulse" style={{ minHeight: 180 }}>
+      <div className="h-1 bg-[#E8611A]/30" />
+      <div className="h-24 bg-[#1A2E1A]/10" />
       <div className="p-3 flex flex-col gap-2">
         <div className="h-3.5 bg-[#1A2E1A]/10 rounded-full w-4/5" />
-        <div className="h-3 bg-[#1A2E1A]/08 rounded-full w-3/5" />
-        <div className="h-3 bg-[#1A2E1A]/06 rounded-full w-2/5 mt-1" />
+        <div className="h-3 bg-[#1A2E1A]/8 rounded-full w-3/5" />
+        <div className="h-3 bg-[#1A2E1A]/6 rounded-full w-2/5 mt-1" />
       </div>
     </div>
   )

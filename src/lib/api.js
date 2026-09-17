@@ -173,6 +173,24 @@ export async function checkGroceryItem(itemKey, checked, token) {
   return res.json()
 }
 
+export async function getTrendingRecipes(cuisine, limit, offset, token) {
+  const params = new URLSearchParams()
+  if (cuisine) params.append('cuisine', cuisine)
+  if (limit)   params.append('limit', limit)
+  if (offset)  params.append('offset', offset)
+  const res = await fetch(`${API_URL}/api/recipes/trending?${params}`, {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
+export async function getTrendingCuisines() {
+  const res = await fetch(`${API_URL}/api/recipes/trending/cuisines`)
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
 export async function submitFeedback(data) {
   const res = await fetch(`${API_URL}/api/feedback`, {
     method: 'POST',

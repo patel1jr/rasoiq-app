@@ -5,53 +5,195 @@ import { useSession } from '../lib/useSession'
 import { getTrendingRecipes, getTrendingCuisines, saveRecipe } from '../lib/api'
 import { getVideoId } from '../utils/videoId'
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+// ── cuisine helpers ───────────────────────────────────────────────────────────
 
-function cuisineEmoji(region) {
-  if (!region) return '🍳'
+const CUISINE_ACCENT = {
+  'punjabi':      '#E8611A',
+  'north indian': '#F5A623',
+  'south indian': '#2D7A5A',
+  'hyderabadi':   '#F5A623',
+  'bengali':      '#2D7A5A',
+  'gujarati':     '#F5A623',
+  'street food':  '#E8836A',
+  'global':       '#6B8CAE',
+  'healthy':      '#2D7A5A',
+}
+
+function accentFor(region) {
+  if (!region) return '#6B8CAE'
   const r = region.toLowerCase()
-  if (r.includes('south indian')) return '🥥'
-  if (r.includes('punjabi'))      return '🍛'
-  if (r.includes('bengali'))      return '🐟'
-  if (r.includes('gujarati'))     return '🫓'
-  if (r.includes('hyderabadi'))   return '🍚'
-  return '🍳'
+  for (const [key, color] of Object.entries(CUISINE_ACCENT)) {
+    if (r.includes(key)) return color
+  }
+  return '#6B8CAE'
+}
+
+// Returns null if the tag should be hidden ("Other", null, blank)
+function visibleCuisineTag(region, title, channelName) {
+  if (!region || region.toLowerCase() === 'other') {
+    // Try to infer from title/channel
+    const haystack = `${title ?? ''} ${channelName ?? ''}`.toLowerCase()
+    if (haystack.includes('punjabi') || haystack.includes('dhaba'))       return 'Punjabi'
+    if (haystack.includes('south indian') || haystack.includes('idli') || haystack.includes('dosa')) return 'South Indian'
+    if (haystack.includes('hyderabadi') || haystack.includes('biryani'))  return 'Hyderabadi'
+    if (haystack.includes('bengali') || haystack.includes('mishti'))      return 'Bengali'
+    if (haystack.includes('gujarati') || haystack.includes('thepla'))     return 'Gujarati'
+    if (haystack.includes('street food') || haystack.includes('chaat'))   return 'Street Food'
+    return null
+  }
+  return region
 }
 
 function saveLabel(count) {
-  if (count >= 5)  return `🔥 ${count}`
-  if (count >= 2)  return `✨ ${count}`
+  if (count >= 5) return `🔥 ${count}`
+  if (count >= 2) return `✨ ${count}`
   return 'New'
 }
 
-// ── sub-components ────────────────────────────────────────────────────────────
+// ── card components ───────────────────────────────────────────────────────────
 
-function RecipeThumb({ sourceUrl, cuisineRegion, className = 'w-full h-28 object-cover' }) {
-  const [err, setErr] = useState(false)
-  const videoId = getVideoId(sourceUrl)
+function BottomRow({ recipe }) {
+  return (
+    <div className="flex items-center justify-between mt-2">
+      <div className="flex items-center gap-1.5">
+        {recipe.totalTimeMinutes && (
+          <span className="text-[11px] bg-[#F0EBE4] text-[#6B5B4E] rounded-full px-2 py-0.5">
+            {recipe.totalTimeMinutes < 60
+              ? `${Math.round(recipe.totalTimeMinutes)}m`
+              : `${Math.floor(recipe.totalTimeMinutes / 60)}h`}
+          </span>
+        )}
+        {recipe.dietaryTags?.some(t => t.toLowerCase().includes('vegetarian')) && (
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-green-600 shrink-0" />
+            <span className="text-[11px] font-semibold text-green-700">Veg</span>
+          </span>
+        )}
+      </div>
+      <span className="text-[11px] font-semibold text-[#E8611A]">
+        {saveLabel(recipe.savedByCount)}
+      </span>
+    </div>
+  )
+}
 
-  if (videoId && !err) {
+// Text-forward card — used when no valid thumbnail
+function TextCard({ recipe, saved, saving, onSave }) {
+  const navigate = useNavigate()
+  const accent  = accentFor(recipe.cuisineRegion)
+  const tag     = visibleCuisineTag(recipe.cuisineRegion, recipe.title, recipe.channelName)
+
+  return (
+    <button
+      className="w-full text-left bg-white rounded-2xl overflow-hidden"
+      onClick={() => navigate(`/recipe/${recipe.id}`, { state: { recipe: { ...recipe, recipeId: recipe.id } } })}
+      style={{ boxShadow: '0 4px 16px -10px rgba(26,46,26,.3)' }}
+    >
+      {/* Accent bar */}
+      <div className="h-1.5 rounded-t-2xl" style={{ background: accent }} />
+
+      <div className="p-4 relative">
+        {/* Heart — no background circle */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onSave() }}
+          disabled={saving}
+          className="absolute top-3 right-3">
+          <Heart size={15} className={saved ? 'text-[#E8611A]' : 'text-[#C0B8AF]'}
+            fill={saved ? '#E8611A' : 'none'} strokeWidth={2} />
+        </button>
+
+        {/* Cuisine tag */}
+        {tag && (
+          <p className="text-[10px] font-bold uppercase tracking-[.08em] mb-2"
+            style={{ color: accent }}>
+            {tag}
+          </p>
+        )}
+
+        {/* Title — hero element */}
+        <p className="text-[15px] font-extrabold text-[#1A2E1A] leading-snug line-clamp-2 pr-6">
+          {recipe.title}
+        </p>
+
+        {recipe.channelName && (
+          <p className="text-xs text-[#9B9490] mt-1.5 truncate">By {recipe.channelName}</p>
+        )}
+
+        <BottomRow recipe={recipe} />
+      </div>
+    </button>
+  )
+}
+
+// Wrapper — decides which card to render; ImageCard self-reports failure via null
+function RecipeCard({ recipe, onSave }) {
+  const [saved,  setSaved]  = useState(recipe.isSaved ?? false)
+  const [saving, setSaving] = useState(false)
+  const [imgFailed, setImgFailed] = useState(false)
+
+  const videoId = getVideoId(recipe.sourceUrl)
+  const hasThumb = !!(recipe.thumbnailUrl || videoId)
+
+  function handleSave() { onSave(recipe, setSaved, setSaving) }
+
+  if (hasThumb && !imgFailed) {
     return (
-      <img
-        src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`}
-        alt=""
-        className={className}
-        onError={() => setErr(true)}
-        onLoad={(e) => { if (e.target.naturalWidth <= 120) setErr(true) }}
+      <ImageCardWithFailure
+        recipe={recipe} saved={saved} saving={saving} onSave={handleSave}
+        onFailed={() => setImgFailed(true)}
       />
     )
   }
+  return <TextCard recipe={recipe} saved={saved} saving={saving} onSave={handleSave} />
+}
+
+// ImageCard that reports back when the img fails (so parent can swap to TextCard)
+function ImageCardWithFailure({ recipe, saved, saving, onSave, onFailed }) {
+  const navigate = useNavigate()
+  const [err, setErr] = useState(false)
+  const videoId = getVideoId(recipe.sourceUrl)
+  const imgSrc  = recipe.thumbnailUrl || (videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null)
+
+  if (import.meta.env.DEV) {
+    console.log('[Trending] sourceUrl:', recipe.sourceUrl, '→ videoId:', videoId, '→ imgSrc:', imgSrc)
+  }
+
+  function handleImgFail() { setErr(true); onFailed() }
+
+  if (!imgSrc) return null // RecipeCard will render TextCard since hasThumb is false
+
   return (
-    <div className="w-full h-28 flex items-center justify-center"
-      style={{ background: 'linear-gradient(135deg,#E8611A 0%,#C4510F 100%)' }}>
-      <span className="text-4xl">{sourceUrl && !videoId ? '🌐' : cuisineEmoji(cuisineRegion)}</span>
-    </div>
+    <button
+      className="w-full text-left bg-white rounded-2xl overflow-hidden"
+      onClick={() => navigate(`/recipe/${recipe.id}`, { state: { recipe: { ...recipe, recipeId: recipe.id } } })}
+      style={{ boxShadow: '0 4px 16px -10px rgba(26,46,26,.3)' }}
+    >
+      <div className="relative rounded-t-2xl overflow-hidden">
+        <img src={imgSrc} alt="" className="w-full h-28 object-cover"
+          onError={handleImgFail}
+          onLoad={(e) => { if (e.target.naturalWidth <= 120) handleImgFail() }}
+        />
+        <button onClick={(e) => { e.stopPropagation(); onSave() }} disabled={saving}
+          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow-sm"
+          style={{ backdropFilter: 'blur(4px)' }}>
+          <Heart size={13} className={saved ? 'text-[#E8611A]' : 'text-[#9B9490]'}
+            fill={saved ? '#E8611A' : 'none'} strokeWidth={2} />
+        </button>
+      </div>
+      <div className="p-3">
+        <p className="text-sm font-bold text-[#1A2E1A] leading-snug line-clamp-2">{recipe.title}</p>
+        {recipe.channelName && (
+          <p className="text-xs text-[#9B9490] mt-1 truncate">By {recipe.channelName}</p>
+        )}
+        <BottomRow recipe={recipe} />
+      </div>
+    </button>
   )
 }
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-sm animate-pulse">
+    <div className="bg-white rounded-2xl overflow-hidden animate-pulse">
       <div className="h-28 bg-[#1A2E1A]/10" />
       <div className="p-3 flex flex-col gap-2">
         <div className="h-3.5 bg-[#1A2E1A]/10 rounded-full w-4/5" />
@@ -73,9 +215,8 @@ function SignUpSheet({ onClose, onSignIn }) {
         <p className="text-sm text-[#6B5B4E] text-center mb-6">
           Create a free account to save recipes to your cookbook and plan your meals.
         </p>
-        <button
-          onClick={onSignIn}
-          className="w-full h-13 rounded-full py-3.5 text-white text-[15px] font-bold"
+        <button onClick={onSignIn}
+          className="w-full rounded-full py-3.5 text-white text-[15px] font-bold"
           style={{ background: '#C2511A', boxShadow: '0 8px 18px -8px rgba(194,81,26,.7)' }}>
           Get started free
         </button>
@@ -87,103 +228,31 @@ function SignUpSheet({ onClose, onSignIn }) {
   )
 }
 
-function RecipeCard({ recipe, onSave }) {
-  const navigate = useNavigate()
-  const [saved, setSaved] = useState(recipe.isSaved ?? false)
-  const [saving, setSaving] = useState(false)
-
-  async function handleSave(e) {
-    e.stopPropagation()
-    onSave(recipe, setSaved, setSaving)
-  }
-
-  return (
-    <button
-      className="w-full text-left bg-white rounded-2xl overflow-hidden shadow-sm relative"
-      onClick={() => navigate(`/recipe/${recipe.id}`, { state: { recipe: { ...recipe, recipeId: recipe.id } } })}
-      style={{ boxShadow: '0 4px 16px -10px rgba(26,46,26,.3)' }}
-    >
-      {/* Thumbnail */}
-      <div className="relative overflow-hidden rounded-t-2xl">
-        <RecipeThumb sourceUrl={recipe.sourceUrl} cuisineRegion={recipe.cuisineRegion} />
-
-        {/* Save button overlay */}
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm"
-          style={{ backdropFilter: 'blur(4px)' }}>
-          <Heart
-            size={15}
-            className={saved ? 'text-[#E8611A]' : 'text-[#9B9490]'}
-            fill={saved ? '#E8611A' : 'none'}
-            strokeWidth={2}
-          />
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="p-3">
-        <p className="text-sm font-bold text-[#1A2E1A] leading-snug line-clamp-2">{recipe.title}</p>
-        {recipe.channelName && (
-          <p className="text-xs text-[#9B9490] mt-1 truncate">By {recipe.channelName}</p>
-        )}
-
-        <div className="flex items-center justify-between mt-2">
-          <div className="flex items-center gap-1.5">
-            {recipe.totalTimeMinutes && (
-              <span className="text-[11px] bg-[#F0EBE4] text-[#6B5B4E] rounded-full px-2 py-0.5">
-                {recipe.totalTimeMinutes < 60
-                  ? `${Math.round(recipe.totalTimeMinutes)}m`
-                  : `${Math.floor(recipe.totalTimeMinutes / 60)}h`}
-              </span>
-            )}
-            {recipe.dietaryTags?.some(t => t.toLowerCase().includes('vegetarian')) && (
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-600 shrink-0" />
-                <span className="text-[11px] font-semibold text-green-700">Veg</span>
-              </span>
-            )}
-          </div>
-          <span className="text-[11px] font-semibold text-[#E8611A]">
-            {saveLabel(recipe.savedByCount)}
-          </span>
-        </div>
-      </div>
-    </button>
-  )
-}
-
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function Trending() {
   const navigate = useNavigate()
   const session  = useSession()
 
-  const [cuisines, setCuisines]     = useState([])
+  const [cuisines, setCuisines]           = useState([])
   const [activeCuisine, setActiveCuisine] = useState(null)
-  const [recipes, setRecipes]       = useState([])
-  const [total, setTotal]           = useState(0)
-  const [loading, setLoading]       = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [signUpSheet, setSignUpSheet] = useState(null) // recipe being saved when unauthenticated
+  const [recipes, setRecipes]             = useState([])
+  const [total, setTotal]                 = useState(0)
+  const [loading, setLoading]             = useState(true)
+  const [loadingMore, setLoadingMore]     = useState(false)
+  const [signUpSheet, setSignUpSheet]     = useState(null)
 
   const PAGE = 20
 
-  // Fetch cuisine chips on mount
   useEffect(() => {
     getTrendingCuisines().catch(() => []).then(setCuisines)
   }, [])
 
-  // Fetch recipes when cuisine filter changes
   useEffect(() => {
     setLoading(true)
     setRecipes([])
     getTrendingRecipes(activeCuisine, PAGE, 0, session?.access_token)
-      .then(data => {
-        setRecipes(data.recipes ?? [])
-        setTotal(data.total ?? 0)
-      })
+      .then(data => { setRecipes(data.recipes ?? []); setTotal(data.total ?? 0) })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [activeCuisine, session?.access_token])
@@ -199,10 +268,7 @@ export default function Trending() {
   }
 
   const handleSave = useCallback((recipe, setSaved, setSaving) => {
-    if (!session) {
-      setSignUpSheet(recipe)
-      return
-    }
+    if (!session) { setSignUpSheet(recipe); return }
     setSaving(true)
     saveRecipe(recipe.id, session.access_token)
       .then(() => setSaved(true))
@@ -230,8 +296,7 @@ export default function Trending() {
           const isAll    = c === 'All'
           const isActive = isAll ? activeCuisine === null : activeCuisine === c
           return (
-            <button
-              key={c}
+            <button key={c}
               onClick={() => setActiveCuisine(isAll ? null : c)}
               className="shrink-0 px-4 h-8 rounded-full text-[13px] font-semibold transition-colors"
               style={{
@@ -256,8 +321,7 @@ export default function Trending() {
             <span className="text-6xl">🍳</span>
             <p className="text-lg font-bold text-[#1A2E1A]">No trending recipes yet</p>
             <p className="text-sm text-[#9B9490]">Be the first to extract one!</p>
-            <button
-              onClick={() => navigate('/discover')}
+            <button onClick={() => navigate('/discover')}
               className="mt-2 h-12 px-6 rounded-full text-white text-[14px] font-bold"
               style={{ background: '#C2511A' }}>
               Extract a recipe
@@ -270,12 +334,9 @@ export default function Trending() {
                 <RecipeCard key={r.id} recipe={r} onSave={handleSave} />
               ))}
             </div>
-
             {hasMore && (
               <div className="flex justify-center mt-5">
-                <button
-                  onClick={loadMore}
-                  disabled={loadingMore}
+                <button onClick={loadMore} disabled={loadingMore}
                   className="h-11 px-8 rounded-full text-[14px] font-bold border-2 disabled:opacity-50"
                   style={{ borderColor: '#E8611A', color: '#E8611A' }}>
                   {loadingMore ? 'Loading…' : 'Load more'}
@@ -286,7 +347,6 @@ export default function Trending() {
         )}
       </div>
 
-      {/* Sign-up sheet */}
       {signUpSheet && (
         <SignUpSheet
           onClose={() => setSignUpSheet(null)}

@@ -13,6 +13,7 @@ import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import GroceryList from './pages/GroceryList'
 import ResetPassword from './pages/ResetPassword'
+import Trending from './pages/Trending'
 import BottomNav from './components/BottomNav'
 
 const HIDE_NAV = ['/cook', '/auth', '/grocery', '/reset-password']
@@ -38,6 +39,7 @@ function App() {
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/saved" element={<SavedRecipes />} />
+        <Route path="/trending" element={<Trending />} />
         <Route path="/log" element={<QuickLog />} />
         <Route path="/history" element={<History />} />
         <Route path="/grocery" element={<GroceryList />} />

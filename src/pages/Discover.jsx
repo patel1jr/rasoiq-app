@@ -51,10 +51,6 @@ function isValidUrl(url) {
   try { new URL(url); return true } catch { return false }
 }
 
-function isYouTubeUrl(url) {
-  return url.includes('youtube.com/watch') || url.includes('youtu.be/') || url.includes('youtube.com/shorts/')
-}
-
 function relativeDate(iso) {
   if (!iso) return ''
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)

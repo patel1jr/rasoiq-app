@@ -2,11 +2,32 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bell, ChevronRight, Plus, Loader2, Play } from 'lucide-react'
 import { useSession } from '../lib/useSession'
-import { getWeekMealPlan, getSavedRecipes } from '../lib/api'
+import { getWeekMealPlan, getSavedRecipes, getTrendingRecipes } from '../lib/api'
 import { getWeekDates, todayISO } from '../utils/streak'
 import { getLocalExtractions } from '../lib/localExtractions'
+import { getVideoId } from '../utils/videoId'
 import WeekStrip from '../components/WeekStrip'
 import MealPlanSheet from '../components/MealPlanSheet'
+
+function TrendingThumb({ sourceUrl }) {
+  const [err, setErr] = useState(false)
+  const videoId = getVideoId(sourceUrl)
+  if (videoId && !err) {
+    return (
+      <img src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`} alt=""
+        className="w-full h-[72px] object-cover"
+        onError={() => setErr(true)}
+        onLoad={(e) => { if (e.target.naturalWidth <= 120) setErr(true) }}
+      />
+    )
+  }
+  return (
+    <div className="w-full h-[72px] flex items-center justify-center"
+      style={{ background: 'linear-gradient(135deg,#E8611A 0%,#C4510F 100%)' }}>
+      <span className="text-2xl">{sourceUrl && !videoId ? '🌐' : '🍳'}</span>
+    </div>
+  )
+}
 
 function greeting() {
   const h = new Date().getHours()
@@ -218,6 +239,7 @@ export default function Home() {
 
   const [weekPlan, setWeekPlan] = useState([])
   const [savedRecipes, setSavedRecipes] = useState([])
+  const [trendingRecipes, setTrendingRecipes] = useState([])
   const [planLoading, setPlanLoading] = useState(false)
   const [planSheet, setPlanSheet] = useState(null)
 
@@ -231,6 +253,13 @@ export default function Home() {
     setWeekPlan([])
     setSavedRecipes([])
   }, [session?.user?.id])
+
+  // Fetch top 3 trending recipes for the home strip
+  useEffect(() => {
+    getTrendingRecipes(null, 3, 0, null)
+      .then(data => setTrendingRecipes(data.recipes ?? []))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!session) return
@@ -440,6 +469,38 @@ export default function Home() {
             )
           })()}
         </div>
+
+        {/* Trending strip */}
+        {trendingRecipes.length > 0 && (
+          <section className="mt-[22px]">
+            <div className="flex items-baseline justify-between px-[22px] pb-3">
+              <p className="text-[11px] font-bold uppercase tracking-[.07em] text-[#E8611A]">
+                🔥 Trending in rasoIQ
+              </p>
+              <button onClick={() => navigate('/trending')} className="text-[13px] font-semibold text-[#E8611A]">
+                See all →
+              </button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto px-[22px] pb-1" style={{ scrollbarWidth: 'none' }}>
+              {trendingRecipes.map(r => (
+                <button key={r.id}
+                  onClick={() => navigate(`/recipe/${r.id}`, { state: { recipe: { ...r, recipeId: r.id } } })}
+                  className="shrink-0 w-[140px] text-left bg-white rounded-[14px] overflow-hidden"
+                  style={{ boxShadow: '0 4px 14px -10px rgba(26,46,26,.35)' }}>
+                  <div className="overflow-hidden rounded-t-[14px]">
+                    <TrendingThumb sourceUrl={r.sourceUrl} />
+                  </div>
+                  <div className="px-2.5 pt-2 pb-2.5">
+                    <p className="text-[12.5px] font-bold text-[#1A2E1A] leading-snug line-clamp-2">{r.title}</p>
+                    <p className="mt-1 text-[11px] font-semibold text-[#E8611A]">
+                      {r.savedByCount >= 5 ? `🔥 ${r.savedByCount}` : r.savedByCount >= 2 ? `✨ ${r.savedByCount}` : 'New'}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Quick picks — only shown when user has saved recipes */}
         {savedRecipes.length > 0 && (

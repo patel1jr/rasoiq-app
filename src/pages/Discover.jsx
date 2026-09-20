@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Smartphone, Check, Loader2, AlertCircle, X, Lock, Clock, ClipboardList } from 'lucide-react'
+import { Smartphone, Check, Loader2, AlertCircle, X, Lock } from 'lucide-react'
 import { extractRecipe, extractFromUrl, extractFromText, getSavedRecipes } from '../lib/api'
 import { thumbUrl, isYouTubeUrl } from '../utils/videoId'
 import { useSession } from '../lib/useSession'
@@ -17,14 +17,6 @@ const EXTRACTION_ERROR_OPTIONS = [
   'Other',
 ]
 
-const CUISINES = [
-  { icon: '🍛', name: 'Punjabi'     },
-  { icon: '🥥', name: 'South Indian'},
-  { icon: '🫓', name: 'Gujarati'    },
-  { icon: '🐟', name: 'Bengali'     },
-  { icon: '🌍', name: 'Global'      },
-  { icon: '🥗', name: 'Healthy'     },
-]
 
 function RecentThumb({ sourceUrl }) {
   const [err, setErr] = useState(false)
@@ -382,40 +374,6 @@ export default function Discover() {
               </section>
             )}
 
-            {/* Cuisine grid */}
-            <section className="mx-[22px] mt-6">
-              <span className="text-[12px] font-bold uppercase tracking-[.07em] text-[#6B5B4E]">Browse saved by cuisine</span>
-              <div className="mt-3 grid grid-cols-2 gap-2.5">
-                {CUISINES.map(cu => (
-                  <button key={cu.name}
-                    onClick={() => navigate('/saved?cuisine=' + encodeURIComponent(cu.name))}
-                    className="bg-white rounded-[16px] py-4 px-2 flex flex-col items-center gap-1.5 cursor-pointer"
-                    style={{boxShadow:'0 4px 14px -12px rgba(26,46,26,.35)'}}>
-                    <span className="text-[24px]">{cu.icon}</span>
-                    <span className="text-[13.5px] font-bold text-[#1A2E1A]">{cu.name}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            {/* Quick or leisurely */}
-            <section className="mx-[22px] mt-6 mb-1">
-              <span className="text-[12px] font-bold uppercase tracking-[.07em] text-[#6B5B4E]">Quick or leisurely?</span>
-              <div className="mt-3 flex gap-2.5">
-                <button className="flex-1 rounded-[16px] p-4 text-left border"
-                  style={{background:'#FCF0E5', borderColor:'rgba(232,97,26,.2)'}}>
-                  <span className="text-[20px]">⚡</span>
-                  <p className="mt-2 text-[14px] font-bold text-[#1A2E1A]">Under 30 min</p>
-                  <p className="mt-0.5 text-[12px] font-medium text-[#6B5B4E]">Quick meals</p>
-                </button>
-                <button className="flex-1 rounded-[16px] p-4 text-left border"
-                  style={{background:'#EAEEE9', borderColor:'rgba(26,46,26,.12)'}}>
-                  <span className="text-[20px]">🕐</span>
-                  <p className="mt-2 text-[14px] font-bold text-[#1A2E1A]">Weekend cooking</p>
-                  <p className="mt-0.5 text-[12px] font-medium text-[#6B5B4E]">Slow & flavourful</p>
-                </button>
-              </div>
-            </section>
           </>
         )}
       </main>

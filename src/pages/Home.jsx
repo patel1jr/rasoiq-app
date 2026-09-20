@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, ChevronRight, Plus, Loader2, Play } from 'lucide-react'
+import { Bell, ChevronRight, Plus, Play } from 'lucide-react'
 import { useSession } from '../lib/useSession'
 import { getWeekMealPlan, getSavedRecipes, getTrendingRecipes } from '../lib/api'
 import { getWeekDates, todayISO } from '../utils/streak'
@@ -9,23 +9,47 @@ import { getVideoId } from '../utils/videoId'
 import WeekStrip from '../components/WeekStrip'
 import MealPlanSheet from '../components/MealPlanSheet'
 
-function TrendingThumb({ sourceUrl }) {
-  const [err, setErr] = useState(false)
-  const videoId = getVideoId(sourceUrl)
-  if (videoId && !err) {
-    return (
-      <img src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`} alt=""
-        className="w-full h-[72px] object-cover"
-        onError={() => setErr(true)}
-        onLoad={(e) => { if (e.target.naturalWidth <= 120) setErr(true) }}
-      />
-    )
+const CUISINE_COLORS = {
+  'punjabi':      '#E8611A',
+  'north indian': '#F5A623',
+  'south indian': '#2D7A5A',
+  'hyderabadi':   '#9B2335',
+  'bengali':      '#6B8CAE',
+  'gujarati':     '#F5A623',
+  'street food':  '#E8836A',
+  'global':       '#6B8CAE',
+}
+function cuisineColor(region) {
+  if (!region) return '#C4510F'
+  const r = region.toLowerCase()
+  for (const [key, color] of Object.entries(CUISINE_COLORS)) {
+    if (r.includes(key)) return color
   }
+  return '#C4510F'
+}
+
+function TrendingThumb({ recipe }) {
+  const [imgLoaded, setImgLoaded] = useState(false)
+  const [imgError, setImgError]   = useState(false)
+  const videoId = getVideoId(recipe.sourceUrl)
+  const imgSrc  = recipe.thumbnailUrl || (videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null)
+  const color   = cuisineColor(recipe.cuisineRegion)
+  const showImg = !!(imgSrc && !imgError && imgLoaded)
+  const hasImg  = !!(imgSrc && !imgError)
+
   return (
-    <div className="w-full h-[72px] flex items-center justify-center"
-      style={{ background: 'linear-gradient(135deg,#E8611A 0%,#C4510F 100%)' }}>
-      <span className="text-2xl">{sourceUrl && !videoId ? '🌐' : '🍳'}</span>
-    </div>
+    <>
+      {hasImg && (
+        <img src={imgSrc} alt="" loading="lazy"
+          style={{ width: '100%', height: showImg ? 88 : 0, objectFit: 'cover', display: 'block' }}
+          onLoad={(e) => { if (e.target.naturalWidth <= 120) { setImgError(true) } else { setImgLoaded(true) } }}
+          onError={() => setImgError(true)}
+        />
+      )}
+      {!showImg && (
+        <div style={{ width: '100%', height: 88, background: `linear-gradient(135deg, ${color}, ${color}99)` }} />
+      )}
+    </>
   )
 }
 
@@ -385,11 +409,7 @@ export default function Home() {
               : 'Today'}
           </p>
 
-          {planLoading ? (
-            <div className="flex justify-center py-3">
-              <Loader2 size={18} className="animate-spin text-[#E8611A]" />
-            </div>
-          ) : (
+          {(
             <div className="mt-3 flex flex-col gap-3">
               {[
                 { mt: 'breakfast', letter: 'B' },
@@ -481,22 +501,41 @@ export default function Home() {
                 See all →
               </button>
             </div>
-            <div className="flex gap-3 overflow-x-auto px-[22px] pb-1" style={{ scrollbarWidth: 'none' }}>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'row',
+              flexWrap: 'nowrap',
+              overflowX: 'scroll',
+              overflowY: 'hidden',
+              gap: 12,
+              paddingLeft: 16,
+              paddingRight: 16,
+              paddingBottom: 8,
+              msOverflowStyle: 'none',
+              scrollbarWidth: 'none',
+            }}>
               {trendingRecipes.map(r => (
-                <button key={r.id}
+                <div key={r.id}
                   onClick={() => navigate(`/recipe/${r.id}`, { state: { recipe: { ...r, recipeId: r.id } } })}
-                  className="shrink-0 w-[140px] text-left bg-white rounded-[14px] overflow-hidden"
-                  style={{ boxShadow: '0 4px 14px -10px rgba(26,46,26,.35)' }}>
-                  <div className="overflow-hidden rounded-t-[14px]">
-                    <TrendingThumb sourceUrl={r.sourceUrl} />
-                  </div>
-                  <div className="px-2.5 pt-2 pb-2.5">
-                    <p className="text-[12.5px] font-bold text-[#1A2E1A] leading-snug line-clamp-2">{r.title}</p>
-                    <p className="mt-1 text-[11px] font-semibold text-[#E8611A]">
+                  style={{
+                    flexShrink: 0,
+                    flexGrow: 0,
+                    width: 140,
+                    minWidth: 140,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    backgroundColor: 'white',
+                    boxShadow: '0 4px 14px -10px rgba(26,46,26,.35)',
+                    cursor: 'pointer',
+                  }}>
+                  <TrendingThumb recipe={r} />
+                  <div style={{ padding: '8px 10px 10px' }}>
+                    <p style={{ fontSize: 12.5, fontWeight: 700, color: '#1A2E1A', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', margin: 0 }}>{r.title}</p>
+                    <p style={{ marginTop: 4, fontSize: 11, fontWeight: 600, color: '#E8611A' }}>
                       {r.savedByCount >= 5 ? `🔥 ${r.savedByCount}` : r.savedByCount >= 2 ? `✨ ${r.savedByCount}` : 'New'}
                     </p>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </section>

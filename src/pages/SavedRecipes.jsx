@@ -5,6 +5,7 @@ import { useSession } from '../lib/useSession'
 import {
   getSavedRecipes, getCollections, createCollection,
   addToCollection, removeFromCollection, unsaveRecipe,
+  updateCollection, deleteCollection,
 } from '../lib/api'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -351,14 +352,147 @@ function RecipeCard({ recipe, onLongPress, onClick }) {
   )
 }
 
+// ── collection options sheet ──────────────────────────────────────────────────
+function CollectionOptionsSheet({ collection, session, onClose, onUpdated, onDeleted }) {
+  const EMOJIS = ['🍽️','❤️','👶','⚡','🎉','🌶️','🥗','🍛','🫕','💪','🌙','☀️','🐟','🥩','🫓','🌍','🧑‍🍳','🥘']
+  const [view, setView]         = useState('menu')  // 'menu' | 'rename' | 'emoji' | 'confirm-delete'
+  const [name, setName]         = useState(collection.name)
+  const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState(null)
+
+  async function handleRename() {
+    if (!name.trim() || name.trim() === collection.name) { onClose(); return }
+    setSaving(true); setError(null)
+    try {
+      const updated = await updateCollection(collection.id, { name: name.trim() }, session.access_token)
+      onUpdated({ ...collection, name: updated.name })
+      onClose()
+    } catch { setError('Could not rename collection.') }
+    finally { setSaving(false) }
+  }
+
+  async function handleEmojiPick(emoji) {
+    try {
+      await updateCollection(collection.id, { emoji }, session.access_token)
+      onUpdated({ ...collection, emoji })
+      onClose()
+    } catch { /* silent */ }
+  }
+
+  async function handleDelete() {
+    setSaving(true); setError(null)
+    try {
+      await deleteCollection(collection.id, session.access_token)
+      onDeleted(collection.id)
+    } catch { setError('Could not delete collection.') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-50" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-50 bg-white rounded-t-3xl px-5 pt-3 pb-10">
+        <div className="w-10 h-1 bg-[#EDE8E0] rounded-full mx-auto mb-4" />
+
+        {view === 'menu' && (
+          <>
+            <p className="text-[15px] font-extrabold text-[#1A2E1A] mb-5 px-1">
+              {collection.emoji} {collection.name}
+            </p>
+            <div className="flex flex-col gap-1">
+              <button onClick={() => setView('rename')}
+                className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-left text-[15px] font-semibold text-[#1A2E1A] hover:bg-[#F5F0EA]">
+                ✏️ Rename collection
+              </button>
+              <button onClick={() => setView('emoji')}
+                className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-left text-[15px] font-semibold text-[#1A2E1A] hover:bg-[#F5F0EA]">
+                🎨 Change emoji
+              </button>
+              <button onClick={() => setView('confirm-delete')}
+                className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-left text-[15px] font-semibold"
+                style={{ color: '#E53E3E' }}>
+                🗑️ Delete collection
+              </button>
+            </div>
+            <button onClick={onClose}
+              className="mt-4 w-full py-3 text-sm font-semibold text-[#9B9490]">
+              Cancel
+            </button>
+          </>
+        )}
+
+        {view === 'rename' && (
+          <>
+            <p className="text-[15px] font-extrabold text-[#1A2E1A] mb-4 px-1">Rename collection</p>
+            <input
+              autoFocus
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleRename()}
+              className="w-full border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#1A2E1A] outline-none mb-2"
+              style={{ background: '#FAFAF9' }}
+            />
+            {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+            <button onClick={handleRename} disabled={saving || !name.trim()}
+              className="w-full h-12 rounded-full text-white text-[15px] font-bold disabled:opacity-40 mt-1"
+              style={{ background: '#C2511A' }}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <button onClick={() => setView('menu')} className="w-full py-3 mt-2 text-sm font-semibold text-[#9B9490]">Back</button>
+          </>
+        )}
+
+        {view === 'emoji' && (
+          <>
+            <p className="text-[15px] font-extrabold text-[#1A2E1A] mb-4 px-1">Choose emoji</p>
+            <div className="flex flex-wrap gap-2 pb-2">
+              {EMOJIS.map(e => (
+                <button key={e} onClick={() => handleEmojiPick(e)}
+                  className="w-11 h-11 rounded-xl text-xl flex items-center justify-center transition-all"
+                  style={{
+                    background: collection.emoji === e ? '#FEF0E8' : '#F5F0EA',
+                    border: collection.emoji === e ? '2px solid #E8611A' : '2px solid transparent',
+                  }}>
+                  {e}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setView('menu')} className="w-full py-3 mt-2 text-sm font-semibold text-[#9B9490]">Back</button>
+          </>
+        )}
+
+        {view === 'confirm-delete' && (
+          <>
+            <p className="text-[17px] font-extrabold text-[#1A2E1A] mb-2 px-1">Delete "{collection.name}"?</p>
+            <p className="text-sm text-[#6B5B4E] mb-6 px-1 leading-relaxed">
+              This removes the collection but keeps your saved recipes. They will still be in All Recipes.
+            </p>
+            {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+            <button onClick={handleDelete} disabled={saving}
+              className="w-full h-12 rounded-full text-white text-[15px] font-bold disabled:opacity-40"
+              style={{ background: '#E53E3E' }}>
+              {saving ? 'Deleting…' : 'Delete'}
+            </button>
+            <button onClick={() => setView('menu')}
+              className="w-full h-12 rounded-full text-[15px] font-semibold mt-2 border border-[#EDE8E0] text-[#1A2E1A]">
+              Cancel
+            </button>
+          </>
+        )}
+      </div>
+    </>
+  )
+}
+
 // ── COLLECTION VIEW ───────────────────────────────────────────────────────────
 const FILTERS = ['All', 'Vegetarian', 'Non-veg', 'Under 30 min']
 
-function CollectionView({ collection, allRecipes, onBack, session, onUnsave, cuisineFilter = null }) {
+function CollectionView({ collection, allRecipes, onBack, session, onUnsave, onCollectionUpdated, onCollectionDeleted, cuisineFilter = null }) {
   const navigate = useNavigate()
   const [filter, setFilter] = useState('All')
   const [actionSheet, setActionSheet] = useState(null)
 
+  const [showOptions, setShowOptions] = useState(false)
   const isAll = collection.id === '__all__'
   const recipes = (isAll
     ? allRecipes
@@ -410,7 +544,8 @@ function CollectionView({ collection, allRecipes, onBack, session, onUnsave, cui
           </p>
         </div>
         {!isAll && (
-          <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0"
+          <button onClick={() => setShowOptions(true)}
+            className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0"
             style={{ boxShadow: '0 2px 8px -4px rgba(26,46,26,.2)' }}>
             <MoreHorizontal size={18} className="text-[#1A2E1A]" />
           </button>
@@ -478,6 +613,16 @@ function CollectionView({ collection, allRecipes, onBack, session, onUnsave, cui
           onUnsave={() => handleUnsave(actionSheet)}
         />
       )}
+
+      {showOptions && !isAll && (
+        <CollectionOptionsSheet
+          collection={collection}
+          session={session}
+          onClose={() => setShowOptions(false)}
+          onUpdated={(updated) => { setShowOptions(false); onCollectionUpdated?.(updated) }}
+          onDeleted={(id) => { onCollectionDeleted?.(id); onBack() }}
+        />
+      )}
     </div>
   )
 }
@@ -536,6 +681,17 @@ export default function SavedRecipes() {
   }
 
   // If inside a collection
+  function handleCollectionUpdated(updated) {
+    setCollections(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
+    setActiveCollection(prev => prev ? { ...prev, ...updated } : prev)
+  }
+
+  function handleCollectionDeleted(id) {
+    setCollections(prev => prev.filter(c => c.id !== id))
+    setActiveCollection(null)
+    setActiveCuisine(null)
+  }
+
   if (activeCollection) {
     return (
       <CollectionView
@@ -544,6 +700,8 @@ export default function SavedRecipes() {
         onBack={() => { setActiveCollection(null); setActiveCuisine(null) }}
         session={session}
         onUnsave={handleUnsave}
+        onCollectionUpdated={handleCollectionUpdated}
+        onCollectionDeleted={handleCollectionDeleted}
         cuisineFilter={activeCuisine}
       />
     )

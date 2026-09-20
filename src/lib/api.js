@@ -120,6 +120,25 @@ export async function removeFromCollection(collectionId, userRecipeId, token) {
   return res.json()
 }
 
+export async function updateCollection(collectionId, data, token) {
+  const res = await fetch(`${API_URL}/api/collections/${collectionId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
+export async function deleteCollection(collectionId, token) {
+  const res = await fetch(`${API_URL}/api/collections/${collectionId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  })
+  if (!res.ok) throw await res.json()
+  return res.json()
+}
+
 export async function getCollectionRecipes(collectionId, token) {
   const res = await fetch(`${API_URL}/api/collections/${collectionId}/recipes`, {
     headers: { 'Authorization': `Bearer ${token}` }

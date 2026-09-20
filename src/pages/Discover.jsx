@@ -351,7 +351,7 @@ export default function Discover() {
                   <span className="text-[12px] font-bold uppercase tracking-[.07em] text-[#6B5B4E]">Recently extracted</span>
                   <button onClick={() => navigate('/saved')} className="text-[13px] font-semibold text-[#E8611A]">See all</button>
                 </div>
-                <div style={{display:'flex', gap:12, overflowX:'auto', padding:'0 16px 8px 16px', scrollbarWidth:'none', WebkitOverflowScrolling:'touch'}}>
+                <div style={{display:'flex', flexDirection:'row', flexWrap:'nowrap', overflowX:'auto', overflowY:'hidden', gap:12, padding:'0 16px 8px 16px', scrollbarWidth:'none', WebkitOverflowScrolling:'touch'}}>
                   {recentItems.slice(0, session ? 5 : 3).map((item, i) => {
                     const rid = item.recipeId || item.recipe?.id
                     const author = item.channelName || item.recipe?.source?.channelName

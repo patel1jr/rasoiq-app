@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Plus, Search, MoreHorizontal, Loader2, X, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Plus, Search, MoreHorizontal, Loader2, X } from 'lucide-react'
 import { useSession } from '../lib/useSession'
 import {
   getSavedRecipes, getCollections, createCollection,
   addToCollection, removeFromCollection, unsaveRecipe,
 } from '../lib/api'
-import { thumbUrl, isYouTubeUrl } from '../utils/videoId'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -60,22 +59,45 @@ function GradientCard({ emoji, name, height = 'h-40', index = 0, allRecipes = fa
   )
 }
 
-function cuisineEmoji(region) {
-  if (!region) return '🍳'
-  const r = region.toLowerCase()
-  if (r.includes('south indian')) return '🥥'
-  if (r.includes('punjabi'))      return '🍛'
-  if (r.includes('bengali'))      return '🐟'
-  if (r.includes('gujarati'))     return '🫓'
-  return '🍳'
+const CUISINE_ACCENT = {
+  'punjabi':      '#E8611A',
+  'north indian': '#F5A623',
+  'south indian': '#2D7A5A',
+  'hyderabadi':   '#9B2335',
+  'bengali':      '#6B8CAE',
+  'gujarati':     '#F5A623',
+  'street food':  '#E8836A',
+  'global':       '#6B8CAE',
 }
 
-// Thumbnail for a single recipe — YouTube img or gradient fallback
+function accentFor(region) {
+  if (!region) return '#6B5B4E'
+  const r = region.toLowerCase()
+  for (const [key, color] of Object.entries(CUISINE_ACCENT)) {
+    if (r.includes(key)) return color
+  }
+  return '#6B5B4E'
+}
+
+function visibleCuisineTag(region) {
+  if (!region || region.toLowerCase() === 'other') return null
+  return region
+}
+
+function getThumbnail(recipe) {
+  if (import.meta.env.DEV) {
+    console.log('recipe sourceUrl:', recipe.sourceUrl, '| thumbnailUrl:', recipe.thumbnailUrl)
+  }
+  if (recipe.thumbnailUrl) return recipe.thumbnailUrl
+  const match = recipe.sourceUrl?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\s?]+)/)
+  if (match?.[1]) return `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg`
+  return null
+}
+
+// Thumbnail for a single recipe — used in mosaic covers
 function RecipeThumbCell({ recipe, className = 'w-full h-full object-cover' }) {
   const [err, setErr] = useState(false)
-  const isYT  = isYouTubeUrl(recipe.sourceUrl)
-  const src   = isYT ? thumbUrl(recipe.sourceUrl) : null
-  const emoji = isYT ? cuisineEmoji(recipe.cuisineRegion) : '🌐'
+  const src = getThumbnail(recipe)
 
   if (src && !err) {
     return (
@@ -86,10 +108,8 @@ function RecipeThumbCell({ recipe, className = 'w-full h-full object-cover' }) {
     )
   }
   return (
-    <div className="w-full h-full flex items-center justify-center"
-      style={{ background: 'linear-gradient(135deg,#E8611A 0%,#C4510F 100%)' }}>
-      <span className="text-2xl">{emoji}</span>
-    </div>
+    <div className="w-full h-full"
+      style={{ background: `linear-gradient(135deg, ${accentFor(recipe.cuisineRegion)} 0%, #1A2E1A 100%)` }} />
   )
 }
 
@@ -250,33 +270,62 @@ function CreateCollectionSheet({ onClose, onCreate }) {
 // ── recipe card (inside collection) ──────────────────────────────────────────
 function RecipeCard({ recipe, onLongPress, onClick }) {
   const pressTimer = useRef(null)
+  const [imgLoaded, setImgLoaded] = useState(false)
+  const [imgError, setImgError]   = useState(false)
 
-  function startPress() {
-    pressTimer.current = setTimeout(() => onLongPress?.(), 500)
+  const accent  = accentFor(recipe.cuisineRegion)
+  const tag     = visibleCuisineTag(recipe.cuisineRegion)
+  const imgSrc  = getThumbnail(recipe)
+  const showImg = !!(imgSrc && !imgError && imgLoaded)
+  const hasImg  = !!(imgSrc && !imgError)
+
+  function handleLoad(e) {
+    if (e.target.naturalWidth <= 120) { setImgError(true); return }
+    setImgLoaded(true)
   }
-  function cancelPress() {
-    clearTimeout(pressTimer.current)
-  }
+
+  function startPress() { pressTimer.current = setTimeout(() => onLongPress?.(), 500) }
+  function cancelPress() { clearTimeout(pressTimer.current) }
 
   return (
     <button
-      className="w-full text-left bg-white rounded-2xl overflow-hidden shadow-sm"
+      className="w-full text-left bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col"
+      style={{ minHeight: 180 }}
       onClick={onClick}
-      onMouseDown={startPress}
-      onMouseUp={cancelPress}
-      onMouseLeave={cancelPress}
-      onTouchStart={startPress}
-      onTouchEnd={cancelPress}
+      onMouseDown={startPress} onMouseUp={cancelPress} onMouseLeave={cancelPress}
+      onTouchStart={startPress} onTouchEnd={cancelPress}
     >
-      <div className="w-full h-28 overflow-hidden">
-        <RecipeThumbCell recipe={recipe} className="w-full h-28 object-cover" />
-      </div>
-      <div className="p-3">
-        <p className="text-sm font-bold text-[#1A2E1A] leading-snug line-clamp-2">{recipe.title}</p>
+      {/* Accent bar — always visible */}
+      <div style={{ height: 4, background: accent, flexShrink: 0 }} />
+
+      {/* Thumbnail — zero-height until loaded */}
+      {hasImg && (
+        <img src={imgSrc} alt={recipe.title} loading="lazy"
+          className="w-full object-cover"
+          style={{ height: showImg ? 100 : 0, display: 'block' }}
+          onLoad={handleLoad}
+          onError={() => setImgError(true)}
+        />
+      )}
+
+      {/* Body */}
+      <div className="p-3 flex flex-col flex-1 relative">
+        {/* Cuisine tag — only in text-forward mode */}
+        {!showImg && tag && (
+          <p className="text-[10px] font-bold uppercase tracking-[.08em] mb-1.5"
+            style={{ color: accent }}>
+            {tag}
+          </p>
+        )}
+
+        <p className={`font-bold text-[#1A2E1A] leading-snug line-clamp-2 ${showImg ? 'text-sm' : 'text-[15px] font-extrabold'}`}>
+          {recipe.title}
+        </p>
         {recipe.channelName && (
           <p className="text-xs text-[#9B9490] mt-1 truncate">By {recipe.channelName}</p>
         )}
-        <div className="flex items-center justify-between mt-2">
+
+        <div className="mt-auto pt-2 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             {recipe.totalTimeMinutes && (
               <span className="text-[11px] bg-[#F0EBE4] text-[#6B5B4E] rounded-full px-2 py-0.5">
@@ -285,7 +334,7 @@ function RecipeCard({ recipe, onLongPress, onClick }) {
             )}
             {recipe.isVegetarian && (
               <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-600 shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-green-600 shrink-0" />
                 <span className="text-[11px] font-semibold text-green-700">Veg</span>
               </span>
             )}

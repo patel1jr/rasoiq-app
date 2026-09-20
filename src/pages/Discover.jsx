@@ -346,12 +346,28 @@ export default function Discover() {
           <>
             {/* Recently extracted */}
             {recentItems.length > 0 && (
-              <section className="mt-6">
-                <div className="flex items-baseline justify-between px-[22px] pb-3">
-                  <span className="text-[12px] font-bold uppercase tracking-[.07em] text-[#6B5B4E]">Recently extracted</span>
-                  <button onClick={() => navigate('/saved')} className="text-[13px] font-semibold text-[#E8611A]">See all</button>
+              <section style={{marginTop: 24}}>
+                {import.meta.env.DEV && console.log('[Discover] recentItems:', recentItems.length, recentItems)}
+                {/* Header row — outside the scroll container */}
+                <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', padding:'0 22px 12px'}}>
+                  <span style={{fontSize:12, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.07em', color:'#6B5B4E'}}>Recently extracted</span>
+                  <button onClick={() => navigate('/saved')} style={{fontSize:13, fontWeight:600, color:'#E8611A', background:'none', border:'none', cursor:'pointer'}}>See all</button>
                 </div>
-                <div style={{display:'flex', flexDirection:'row', flexWrap:'nowrap', overflowX:'auto', overflowY:'hidden', gap:12, padding:'0 16px 8px 16px', scrollbarWidth:'none', WebkitOverflowScrolling:'touch'}}>
+                {/* Scroll row */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  flexWrap: 'nowrap',
+                  overflowX: 'auto',
+                  overflowY: 'hidden',
+                  gap: '12px',
+                  paddingLeft: '16px',
+                  paddingRight: '16px',
+                  paddingBottom: '8px',
+                  WebkitOverflowScrolling: 'touch',
+                  msOverflowStyle: 'none',
+                  scrollbarWidth: 'none',
+                }}>
                   {recentItems.slice(0, session ? 5 : 3).map((item, i) => {
                     const rid = item.recipeId || item.recipe?.id
                     const author = item.channelName || item.recipe?.source?.channelName
@@ -359,11 +375,25 @@ export default function Discover() {
                     return (
                       <button key={rid || i}
                         onClick={() => navigate(rid ? `/recipe/${rid}` : '/recipe', { state: { recipe: item.recipe || item } })}
-                        style={{width:160, flexShrink:0, borderRadius:16, overflow:'hidden', background:'#fff', boxShadow:'0 1px 4px rgba(0,0,0,0.08)', textAlign:'left', cursor:'pointer'}}>
+                        style={{
+                          flexShrink: 0,
+                          flexGrow: 0,
+                          width: '156px',
+                          minWidth: '156px',
+                          maxWidth: '156px',
+                          borderRadius: '12px',
+                          overflow: 'hidden',
+                          backgroundColor: 'white',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          border: 'none',
+                          padding: 0,
+                        }}>
                         <RecentThumb sourceUrl={sourceUrl} />
                         <div style={{padding:'8px 10px 10px'}}>
                           <p style={{fontSize:13, fontWeight:600, color:'#1A2E1A', lineHeight:'1.35', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', margin:0}}>{item.title}</p>
-                          {author && <p style={{fontSize:11, color:'#9B9490', marginTop:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', margin:'3px 0 0'}}>{author}</p>}
+                          {author && <p style={{fontSize:11, color:'#9B9490', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', margin:'3px 0 0'}}>{author}</p>}
                         </div>
                       </button>
                     )

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Smartphone, Check, Loader2, AlertCircle, X, Lock } from 'lucide-react'
 import { extractRecipe, extractFromUrl, extractFromText, getSavedRecipes } from '../lib/api'
-import { thumbUrl, isYouTubeUrl } from '../utils/videoId'
+import { isYouTubeUrl } from '../utils/videoId'
 import { useSession } from '../lib/useSession'
 import { getLocalExtractions, addLocalExtraction, isAtLimit, FREE_LIMIT } from '../lib/localExtractions'
 import ExtractionLoader from '../components/ExtractionLoader'
@@ -18,25 +18,6 @@ const EXTRACTION_ERROR_OPTIONS = [
 ]
 
 
-function RecentThumb({ sourceUrl }) {
-  const [err, setErr] = useState(false)
-  const isYT = isYouTubeUrl(sourceUrl)
-  const src  = isYT ? thumbUrl(sourceUrl) : null
-
-  if (src && !err) {
-    return (
-      <img src={src} alt="" style={{width:'100%', height:100, objectFit:'cover', display:'block'}}
-        onError={() => setErr(true)}
-        onLoad={(e) => { if (e.target.naturalWidth <= 120) setErr(true) }}
-      />
-    )
-  }
-  return (
-    <div style={{width:'100%', height:100, display:'flex', alignItems:'center', justifyContent:'center', background:'linear-gradient(135deg,#E8611A 0%,#C4510F 100%)'}}>
-      <span style={{fontSize:28}}>{isYT ? '🍳' : '🌐'}</span>
-    </div>
-  )
-}
 
 function isValidUrl(url) {
   try { new URL(url); return true } catch { return false }
@@ -346,60 +327,109 @@ export default function Discover() {
           <>
             {/* Recently extracted */}
             {recentItems.length > 0 && (
-              <section style={{marginTop: 24}}>
-                {import.meta.env.DEV && console.log('[Discover] recentItems:', recentItems.length, recentItems)}
-                {/* Header row — outside the scroll container */}
-                <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', padding:'0 22px 12px'}}>
-                  <span style={{fontSize:12, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.07em', color:'#6B5B4E'}}>Recently extracted</span>
-                  <button onClick={() => navigate('/saved')} style={{fontSize:13, fontWeight:600, color:'#E8611A', background:'none', border:'none', cursor:'pointer'}}>See all</button>
+              <div style={{ marginTop: 24 }}>
+                {import.meta.env.DEV && console.log('recentItems:', recentItems)}
+
+                {/* Header row */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingLeft: 16,
+                  paddingRight: 16,
+                  marginBottom: 12,
+                }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#6B5B4E', letterSpacing: '0.1em' }}>
+                    RECENTLY EXTRACTED
+                  </span>
+                  <span onClick={() => navigate('/saved')} style={{ fontSize: 13, color: '#E8611A', cursor: 'pointer' }}>
+                    See all
+                  </span>
                 </div>
-                {/* Scroll row */}
+
+                {/* Scroll row - single horizontal line */}
                 <div style={{
                   display: 'flex',
                   flexDirection: 'row',
                   flexWrap: 'nowrap',
-                  overflowX: 'auto',
+                  overflowX: 'scroll',
                   overflowY: 'hidden',
-                  gap: '12px',
-                  paddingLeft: '16px',
-                  paddingRight: '16px',
-                  paddingBottom: '8px',
-                  WebkitOverflowScrolling: 'touch',
-                  msOverflowStyle: 'none',
-                  scrollbarWidth: 'none',
+                  gap: 12,
+                  paddingLeft: 16,
+                  paddingRight: 16,
+                  paddingBottom: 8,
                 }}>
                   {recentItems.slice(0, session ? 5 : 3).map((item, i) => {
-                    const rid = item.recipeId || item.recipe?.id
-                    const author = item.channelName || item.recipe?.source?.channelName
+                    const rid = item.recipeId || item.recipe?.id || item.id
+                    const author = item.channelName || item.recipe?.source?.channelName || item.recipe?.channelName
                     const sourceUrl = item.sourceUrl || item.recipe?.sourceUrl
+                    const videoId = sourceUrl?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\s?]+)/)?.[1]
+                    const thumbnail = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null
+
                     return (
-                      <button key={rid || i}
+                      <div
+                        key={rid || i}
                         onClick={() => navigate(rid ? `/recipe/${rid}` : '/recipe', { state: { recipe: item.recipe || item } })}
                         style={{
                           flexShrink: 0,
                           flexGrow: 0,
-                          width: '156px',
-                          minWidth: '156px',
-                          maxWidth: '156px',
-                          borderRadius: '12px',
+                          width: 156,
+                          minWidth: 156,
+                          borderRadius: 12,
                           overflow: 'hidden',
                           backgroundColor: 'white',
                           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                          textAlign: 'left',
                           cursor: 'pointer',
-                          border: 'none',
-                          padding: 0,
+                        }}
+                      >
+                        {/* Thumbnail or fallback */}
+                        {thumbnail ? (
+                          <img
+                            src={thumbnail}
+                            alt={item.title}
+                            style={{ width: '100%', height: 96, objectFit: 'cover', display: 'block' }}
+                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
+                            onLoad={(e) => { if (e.target.naturalWidth <= 120) { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' } }}
+                          />
+                        ) : null}
+                        <div style={{
+                          display: thumbnail ? 'none' : 'flex',
+                          width: '100%',
+                          height: 96,
+                          backgroundColor: '#E8611A',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 28,
                         }}>
-                        <RecentThumb sourceUrl={sourceUrl} />
-                        <div style={{padding:'8px 10px 10px'}}>
-                          <p style={{fontSize:13, fontWeight:600, color:'#1A2E1A', lineHeight:'1.35', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', margin:0}}>{item.title}</p>
-                          {author && <p style={{fontSize:11, color:'#9B9490', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', margin:'3px 0 0'}}>{author}</p>}
+                          {sourceUrl && !videoId ? '🌐' : '🍳'}
                         </div>
-                      </button>
+
+                        {/* Card content */}
+                        <div style={{ padding: '8px 10px 10px' }}>
+                          <div style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: '#1A2E1A',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            lineHeight: 1.3,
+                            marginBottom: 4,
+                          }}>
+                            {item.title}
+                          </div>
+                          {author && (
+                            <div style={{ fontSize: 11, color: '#6B5B4E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {author}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )
                   })}
                 </div>
-              </section>
+              </div>
             )}
 
           </>
